@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'admin_home_screen.dart';
 import 'admin_placeholder_screen.dart';
 import 'category/admin_category_screen.dart';
+import 'song/admin_song_screen.dart';
+import 'user/admin_user_screen.dart';
 
 class AdminNavItem {
   final String title;
@@ -29,20 +31,12 @@ final List<AdminNavItem> adminNavItems = [
   const AdminNavItem(
     title: 'Kelola Lagu',
     icon: Icons.library_music_rounded,
-    page: AdminPlaceholderScreen(
-      title: 'Kelola Lagu',
-      description: 'Fitur manajemen daftar lagu karaoke',
-      icon: Icons.library_music_rounded,
-    ),
+    page: AdminSongScreen(),
   ),
   const AdminNavItem(
     title: 'Kelola User',
     icon: Icons.people_alt_rounded,
-    page: AdminPlaceholderScreen(
-      title: 'Kelola User',
-      description: 'Fitur manajemen pengguna dan hak akses',
-      icon: Icons.people_alt_rounded,
-    ),
+    page: AdminUserScreen(),
   ),
   const AdminNavItem(
     title: 'Pengaturan',

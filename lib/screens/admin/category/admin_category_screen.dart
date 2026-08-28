@@ -76,73 +76,111 @@ class _AdminCategoryScreenState extends State<AdminCategoryScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surfaceDark,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: AppColors.cardGlassBorder),
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppColors.cardGlassBorder, width: 1.2),
         ),
-        title: const Text(
-          'Tambah Kategori',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Nama Kategori',
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primaryElectric.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.create_new_folder_rounded,
+                color: AppColors.accentCyan,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Tambah Kategori',
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
                 ),
               ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: nameController,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Contoh: Pop, Rock, Jazz',
-                  hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
-                  filled: true,
-                  fillColor: AppColors.inputBackground,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppColors.inputBorder),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 20),
+              tooltip: 'Tutup',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Nama Kategori *',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppColors.inputBorder),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: nameController,
+                    autofocus: true,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Contoh: Pop, Rock, Jazz',
+                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                      filled: true,
+                      fillColor: AppColors.inputBackground,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.inputBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.inputBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.inputFocusedBorder, width: 1.5),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Nama kategori wajib diisi';
+                      }
+                      if (value.trim().length < 2) {
+                        return 'Minimal 2 karakter';
+                      }
+                      return null;
+                    },
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppColors.inputFocusedBorder, width: 1.5),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Nama kategori wajib diisi';
-                  }
-                  if (value.trim().length < 2) {
-                    return 'Minimal 2 karakter';
-                  }
-                  return null;
-                },
+                ],
               ),
-            ],
+            ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Batal', style: TextStyle(color: AppColors.textMuted)),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            ),
+            child: const Text('Batal', style: TextStyle(color: AppColors.textMuted, fontSize: 14, fontWeight: FontWeight.w500)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -155,11 +193,13 @@ class _AdminCategoryScreenState extends State<AdminCategoryScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryElectric,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
+              elevation: 2,
             ),
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+            child: const Text('Simpan', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -179,73 +219,111 @@ class _AdminCategoryScreenState extends State<AdminCategoryScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surfaceDark,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: AppColors.cardGlassBorder),
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppColors.cardGlassBorder, width: 1.2),
         ),
-        title: const Text(
-          'Ubah Kategori',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Nama Kategori',
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primaryElectric.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.edit_rounded,
+                color: AppColors.accentCyan,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Ubah Kategori',
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
                 ),
               ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: nameController,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Masukkan nama kategori',
-                  hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
-                  filled: true,
-                  fillColor: AppColors.inputBackground,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppColors.inputBorder),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 20),
+              tooltip: 'Tutup',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Nama Kategori *',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppColors.inputBorder),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: nameController,
+                    autofocus: true,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Masukkan nama kategori',
+                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                      filled: true,
+                      fillColor: AppColors.inputBackground,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.inputBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.inputBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.inputFocusedBorder, width: 1.5),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Nama kategori wajib diisi';
+                      }
+                      if (value.trim().length < 2) {
+                        return 'Minimal 2 karakter';
+                      }
+                      return null;
+                    },
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppColors.inputFocusedBorder, width: 1.5),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Nama kategori wajib diisi';
-                  }
-                  if (value.trim().length < 2) {
-                    return 'Minimal 2 karakter';
-                  }
-                  return null;
-                },
+                ],
               ),
-            ],
+            ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Batal', style: TextStyle(color: AppColors.textMuted)),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            ),
+            child: const Text('Batal', style: TextStyle(color: AppColors.textMuted, fontSize: 14, fontWeight: FontWeight.w500)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -258,11 +336,13 @@ class _AdminCategoryScreenState extends State<AdminCategoryScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryElectric,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
+              elevation: 2,
             ),
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
+            child: const Text('Simpan', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -279,9 +359,10 @@ class _AdminCategoryScreenState extends State<AdminCategoryScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surfaceDark,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: AppColors.cardGlassBorder),
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppColors.cardGlassBorder, width: 1.2),
         ),
         title: const Text(
           'Hapus Kategori',
@@ -291,13 +372,22 @@ class _AdminCategoryScreenState extends State<AdminCategoryScreen> {
             fontSize: 18,
           ),
         ),
-        content: Text(
-          'Hapus kategori "${category.name}"?',
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Text(
+              'Hapus kategori "${category.name}"?',
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            ),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
             child: const Text('Batal', style: TextStyle(color: AppColors.accentSky)),
           ),
           ElevatedButton(
@@ -309,11 +399,12 @@ class _AdminCategoryScreenState extends State<AdminCategoryScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+            child: const Text('Hapus', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
