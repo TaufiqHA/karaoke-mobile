@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/services/api_auth_service.dart';
 import '../core/services/storage_service.dart';
 import '../core/theme/app_colors.dart';
 import '../models/user_model.dart';
@@ -97,8 +98,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (confirm == true && mounted) {
-      final storage = await StorageService.getInstance();
-      await storage.clearSession();
+      final authService = ApiAuthService();
+      await authService.logout();
 
       if (!mounted) return;
 

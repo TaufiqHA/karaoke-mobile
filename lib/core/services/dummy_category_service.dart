@@ -9,33 +9,33 @@ class DummyCategoryService implements CategoryService {
 
   final List<CategoryModel> _defaultCategories = [
     CategoryModel(
-      id: 'cat_1',
-      name: 'Pop Indonesia',
+      songcategoryid: 1,
+      songcategoryname: 'Pop Indonesia',
       createdAt: DateTime.now().subtract(const Duration(days: 30)),
     ),
     CategoryModel(
-      id: 'cat_2',
-      name: 'Dangdut & Koplo',
+      songcategoryid: 2,
+      songcategoryname: 'Dangdut & Koplo',
       createdAt: DateTime.now().subtract(const Duration(days: 25)),
     ),
     CategoryModel(
-      id: 'cat_3',
-      name: 'Rock & Metal',
+      songcategoryid: 3,
+      songcategoryname: 'Rock & Metal',
       createdAt: DateTime.now().subtract(const Duration(days: 20)),
     ),
     CategoryModel(
-      id: 'cat_4',
-      name: 'Barat / International',
+      songcategoryid: 4,
+      songcategoryname: 'Barat / International',
       createdAt: DateTime.now().subtract(const Duration(days: 15)),
     ),
     CategoryModel(
-      id: 'cat_5',
-      name: 'K-Pop',
+      songcategoryid: 5,
+      songcategoryname: 'K-Pop',
       createdAt: DateTime.now().subtract(const Duration(days: 10)),
     ),
     CategoryModel(
-      id: 'cat_6',
-      name: 'Anime & J-Pop',
+      songcategoryid: 6,
+      songcategoryname: 'Anime & J-Pop',
       createdAt: DateTime.now().subtract(const Duration(days: 5)),
     ),
   ];
@@ -45,32 +45,50 @@ class DummyCategoryService implements CategoryService {
   }
 
   @override
-  Future<List<CategoryModel>> getCategories() async {
+  Future<List<CategoryModel>> getCategories({String? search}) async {
     final prefs = await _getPrefs();
     final jsonString = prefs.getString(_keyCategories);
 
+    List<CategoryModel> list;
     if (jsonString == null || jsonString.isEmpty) {
       // Inisialisasi data default
       await _saveAll(_defaultCategories);
-      return List.from(_defaultCategories);
+      list = List.from(_defaultCategories);
+    } else {
+      try {
+        final List<dynamic> decoded = jsonDecode(jsonString) as List<dynamic>;
+        list = decoded
+            .map((item) => CategoryModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } catch (_) {
+        list = List.from(_defaultCategories);
+      }
     }
 
-    try {
-      final List<dynamic> decoded = jsonDecode(jsonString) as List<dynamic>;
-      return decoded
-          .map((item) => CategoryModel.fromJson(item as Map<String, dynamic>))
-          .toList();
-    } catch (_) {
-      return List.from(_defaultCategories);
+    if (search != null && search.trim().isNotEmpty) {
+      final query = search.trim().toLowerCase();
+      list = list.where((c) => c.name.toLowerCase().contains(query)).toList();
     }
+
+    return list;
+  }
+
+  @override
+  Future<CategoryModel> getCategory(int id) async {
+    final categories = await getCategories();
+    return categories.firstWhere(
+      (c) => c.songcategoryid == id || c.id == id.toString(),
+      orElse: () => throw Exception('Kategori tidak ditemukan'),
+    );
   }
 
   @override
   Future<CategoryModel> createCategory(String name) async {
     final categories = await getCategories();
+    final newId = DateTime.now().millisecondsSinceEpoch % 100000;
     final newCategory = CategoryModel(
-      id: 'cat_${DateTime.now().millisecondsSinceEpoch}',
-      name: name.trim(),
+      songcategoryid: newId,
+      songcategoryname: name.trim(),
       createdAt: DateTime.now(),
     );
 
@@ -80,9 +98,10 @@ class DummyCategoryService implements CategoryService {
   }
 
   @override
-  Future<CategoryModel> updateCategory(String id, String newName) async {
+  Future<CategoryModel> updateCategory(dynamic id, String newName) async {
+    final strId = id.toString();
     final categories = await getCategories();
-    final index = categories.indexWhere((c) => c.id == id);
+    final index = categories.indexWhere((c) => c.id == strId || c.songcategoryid.toString() == strId);
 
     if (index == -1) {
       throw Exception('Kategori tidak ditemukan');
@@ -95,10 +114,11 @@ class DummyCategoryService implements CategoryService {
   }
 
   @override
-  Future<bool> deleteCategory(String id) async {
+  Future<bool> deleteCategory(dynamic id) async {
+    final strId = id.toString();
     final categories = await getCategories();
     final initialLength = categories.length;
-    categories.removeWhere((c) => c.id == id);
+    categories.removeWhere((c) => c.id == strId || c.songcategoryid.toString() == strId);
 
     if (categories.length < initialLength) {
       await _saveAll(categories);

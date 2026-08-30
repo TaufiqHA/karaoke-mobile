@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../core/services/api_auth_service.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/services/dummy_user_service.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/services/user_service.dart';
@@ -9,6 +11,7 @@ class ProfileScreen extends StatefulWidget {
   final UserModel? initialUser;
   final StorageService? storageService;
   final UserService? userService;
+  final AuthService? authService;
   final bool showBackButton;
 
   const ProfileScreen({
@@ -16,6 +19,7 @@ class ProfileScreen extends StatefulWidget {
     this.initialUser,
     this.storageService,
     this.userService,
+    this.authService,
     this.showBackButton = true,
   });
 
@@ -26,6 +30,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late StorageService _storageService;
   late UserService _userService;
+  late AuthService _authService;
 
   UserModel? _currentUser;
   bool _isLoading = true;
@@ -56,19 +61,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _initServicesAndLoadUser() async {
     _storageService = widget.storageService ?? await StorageService.getInstance();
     _userService = widget.userService ?? DummyUserService();
+    _authService = widget.authService ?? ApiAuthService(storageService: _storageService);
 
-    UserModel? user = widget.initialUser;
-    user ??= await _storageService.getUser();
+    // 1. Muat data instan dari cache lokal jika ada
+    final cachedUser = widget.initialUser ?? await _storageService.getUser();
 
     if (mounted) {
       setState(() {
-        _currentUser = user;
+        _currentUser = cachedUser;
         _isLoading = false;
-        if (user != null) {
-          _displayNameController.text = user.displayName;
-          _emailController.text = user.email ?? '';
+        if (cachedUser != null) {
+          _displayNameController.text = cachedUser.displayName;
+          _emailController.text = cachedUser.email ?? '';
         }
       });
+    }
+
+    // 2. Ambil data profil terbaru dari endpoint /me backend jika token tersedia
+    final token = await _storageService.getToken();
+    if (token != null && token.isNotEmpty) {
+      await _fetchProfileFromServer();
+    }
+  }
+
+  Future<void> _fetchProfileFromServer({bool showFeedback = false}) async {
+    final token = await _storageService.getToken();
+    if (token == null || token.isEmpty) {
+      if (showFeedback && mounted) {
+        _showSnackBar('Tidak ada sesi aktif', isError: true);
+      }
+      return;
+    }
+
+    try {
+      final latestUser = await _authService.getProfile();
+      if (latestUser != null && mounted) {
+        setState(() {
+          _currentUser = latestUser;
+          _isLoading = false;
+          if (!_isSavingProfile) {
+            _displayNameController.text = latestUser.displayName;
+            _emailController.text = latestUser.email ?? '';
+          }
+        });
+
+        if (showFeedback) {
+          _showSnackBar('Data profil berhasil diperbarui');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (showFeedback) {
+          _showSnackBar('Gagal memperbarui profil: $e', isError: true);
+        }
+      }
     }
   }
 
@@ -106,12 +153,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isSavingProfile = true);
 
     try {
-      final updatedUser = _currentUser!.copyWith(
-        displayName: _displayNameController.text.trim(),
-        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-      );
+      final token = await _storageService.getToken();
+      UserModel updatedUser;
 
-      await _storageService.saveUser(updatedUser);
+      if (token != null && token.isNotEmpty) {
+        updatedUser = await _authService.updateProfile(
+          name: _displayNameController.text.trim(),
+          username: _currentUser!.username,
+          email: _emailController.text.trim(),
+        );
+      } else {
+        updatedUser = _currentUser!.copyWith(
+          displayName: _displayNameController.text.trim(),
+          email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        );
+        await _storageService.saveUser(updatedUser);
+      }
 
       if (mounted) {
         setState(() {
@@ -123,7 +180,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSavingProfile = false);
-        _showSnackBar('Gagal menyimpan profil: $e', isError: true);
+        final errText = e.toString().replaceAll('Exception: ', '');
+        _showSnackBar(errText, isError: true);
       }
     }
   }
@@ -136,13 +194,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final oldPass = _oldPasswordController.text;
     final newPass = _newPasswordController.text;
+    final confirmPass = _confirmPasswordController.text;
 
     try {
-      await _userService.changePassword(
-        username: _currentUser!.username,
-        oldPassword: oldPass,
-        newPassword: newPass,
-      );
+      final token = await _storageService.getToken();
+      if (token != null && token.isNotEmpty) {
+        await _authService.updatePassword(
+          currentPassword: oldPass,
+          newPassword: newPass,
+          newPasswordConfirmation: confirmPass,
+        );
+      } else {
+        await _userService.changePassword(
+          username: _currentUser!.username,
+          oldPassword: oldPass,
+          newPassword: newPass,
+        );
+      }
 
       if (mounted) {
         _oldPasswordController.clear();
@@ -205,7 +273,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           )
         : RefreshIndicator(
-            onRefresh: _initServicesAndLoadUser,
+            onRefresh: () => _fetchProfileFromServer(showFeedback: true),
             color: AppColors.accentCyan,
             backgroundColor: AppColors.surfaceDark,
             child: CustomScrollView(

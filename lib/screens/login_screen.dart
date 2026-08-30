@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import '../core/services/api_auth_service.dart';
 import '../core/services/auth_service.dart';
-import '../core/services/dummy_auth_service.dart';
 import '../core/theme/app_colors.dart';
 import 'admin/admin_main_layout.dart';
 import 'home_screen.dart';
@@ -26,7 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _authService = widget.authService ?? DummyAuthService();
+    _authService = widget.authService ?? ApiAuthService();
   }
 
   @override

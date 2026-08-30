@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/api_category_service.dart';
 import '../../../core/services/category_service.dart';
-import '../../../core/services/dummy_category_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/category_model.dart';
 
@@ -23,7 +23,7 @@ class _AdminCategoryScreenState extends State<AdminCategoryScreen> {
   @override
   void initState() {
     super.initState();
-    _categoryService = widget.categoryService ?? DummyCategoryService();
+    _categoryService = widget.categoryService ?? ApiCategoryService();
     _searchController.addListener(_filterCategories);
     _loadCategories();
   }
@@ -185,9 +185,16 @@ class _AdminCategoryScreenState extends State<AdminCategoryScreen> {
           ElevatedButton(
             onPressed: () async {
               if (formKey.currentState!.validate()) {
-                await _categoryService.createCategory(nameController.text);
-                if (context.mounted) {
-                  Navigator.of(context).pop(true);
+                try {
+                  await _categoryService.createCategory(nameController.text);
+                  if (context.mounted) {
+                    Navigator.of(context).pop(true);
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    final errText = e.toString().replaceAll('Exception: ', '');
+                    _showSnackbar(errText, AppColors.error);
+                  }
                 }
               }
             },
@@ -328,9 +335,16 @@ class _AdminCategoryScreenState extends State<AdminCategoryScreen> {
           ElevatedButton(
             onPressed: () async {
               if (formKey.currentState!.validate()) {
-                await _categoryService.updateCategory(category.id, nameController.text);
-                if (context.mounted) {
-                  Navigator.of(context).pop(true);
+                try {
+                  await _categoryService.updateCategory(category.id, nameController.text);
+                  if (context.mounted) {
+                    Navigator.of(context).pop(true);
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    final errText = e.toString().replaceAll('Exception: ', '');
+                    _showSnackbar(errText, AppColors.error);
+                  }
                 }
               }
             },
@@ -392,9 +406,16 @@ class _AdminCategoryScreenState extends State<AdminCategoryScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              await _categoryService.deleteCategory(category.id);
-              if (context.mounted) {
-                Navigator.of(context).pop(true);
+              try {
+                await _categoryService.deleteCategory(category.id);
+                if (context.mounted) {
+                  Navigator.of(context).pop(true);
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  final errText = e.toString().replaceAll('Exception: ', '');
+                  _showSnackbar(errText, AppColors.error);
+                }
               }
             },
             style: ElevatedButton.styleFrom(

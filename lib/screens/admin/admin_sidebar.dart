@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/services/storage_service.dart';
+import '../../core/services/api_auth_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../login_screen.dart';
 import 'admin_nav_item.dart';
@@ -61,8 +61,8 @@ class AdminSidebar extends StatelessWidget {
     );
 
     if (confirm == true && context.mounted) {
-      final storage = await StorageService.getInstance();
-      await storage.clearSession();
+      final authService = ApiAuthService();
+      await authService.logout();
 
       if (!context.mounted) return;
 

@@ -1,8 +1,9 @@
 import '../../models/category_model.dart';
 
 abstract class CategoryService {
-  Future<List<CategoryModel>> getCategories();
+  Future<List<CategoryModel>> getCategories({String? search});
+  Future<CategoryModel> getCategory(int id);
   Future<CategoryModel> createCategory(String name);
-  Future<CategoryModel> updateCategory(String id, String newName);
-  Future<bool> deleteCategory(String id);
+  Future<CategoryModel> updateCategory(dynamic id, String newName);
+  Future<bool> deleteCategory(dynamic id);
 }

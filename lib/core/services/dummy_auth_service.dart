@@ -13,6 +13,12 @@ class DummyAuthService implements AuthService {
   }
 
   @override
+  Future<String?> getToken() async {
+    final storage = await _getStorage();
+    return await storage.getToken();
+  }
+
+  @override
   Future<AuthResponse> login(String username, String password) async {
     // Simulasi delay jaringan API (1.2 detik)
     await Future.delayed(const Duration(milliseconds: 1200));
@@ -28,9 +34,10 @@ class DummyAuthService implements AuthService {
 
     // Validasi dummy sederhana
     final user = UserModel(
-      id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
+      id: DateTime.now().millisecondsSinceEpoch % 100000,
+      name: trimmedUser[0].toUpperCase() +
+          (trimmedUser.length > 1 ? trimmedUser.substring(1) : ''),
       username: trimmedUser,
-      displayName: trimmedUser[0].toUpperCase() + (trimmedUser.length > 1 ? trimmedUser.substring(1) : ''),
       email: '$trimmedUser@karaokeapp.com',
       role: role,
     );
@@ -49,8 +56,47 @@ class DummyAuthService implements AuthService {
   }
 
   @override
+  Future<UserModel?> getProfile() async {
+    final storage = await _getStorage();
+    return await storage.getUser();
+  }
+
+  @override
   Future<void> logout() async {
     final storage = await _getStorage();
     await storage.clearSession();
+  }
+
+  @override
+  Future<UserModel> updateProfile({
+    required String name,
+    required String username,
+    required String email,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final storage = await _getStorage();
+    final currentUser = await storage.getUser();
+    final updated = (currentUser ??
+            UserModel(
+              id: 1,
+              name: name,
+              username: username,
+              email: email,
+            ))
+        .copyWith(name: name, username: username, email: email);
+    await storage.saveUser(updated);
+    return updated;
+  }
+
+  @override
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (newPassword != newPasswordConfirmation) {
+      throw Exception('Konfirmasi kata sandi tidak cocok.');
+    }
   }
 }
