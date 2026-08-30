@@ -78,22 +78,48 @@ class DummySongService implements SongService {
   }
 
   @override
-  Future<List<SongModel>> getSongs() async {
+  Future<List<SongModel>> getSongs({String? search, int? categoryId}) async {
     final prefs = await _getPrefs();
     final jsonString = prefs.getString(_keySongs);
 
+    List<SongModel> songs;
+
     if (jsonString == null || jsonString.isEmpty) {
       await _saveAll(_defaultSongs);
-      return List.from(_defaultSongs);
+      songs = List.from(_defaultSongs);
+    } else {
+      try {
+        final List<dynamic> decoded = jsonDecode(jsonString) as List<dynamic>;
+        songs = decoded
+            .map((item) => SongModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } catch (_) {
+        songs = List.from(_defaultSongs);
+      }
     }
 
+    if (search != null && search.trim().isNotEmpty) {
+      final query = search.trim().toLowerCase();
+      songs = songs.where((s) {
+        return s.songtitle.toLowerCase().contains(query) ||
+            s.songsinger.toLowerCase().contains(query);
+      }).toList();
+    }
+
+    if (categoryId != null) {
+      songs = songs.where((s) => s.songcategory == categoryId).toList();
+    }
+
+    return songs;
+  }
+
+  @override
+  Future<SongModel> getSong(int id) async {
+    final songs = await getSongs();
     try {
-      final List<dynamic> decoded = jsonDecode(jsonString) as List<dynamic>;
-      return decoded
-          .map((item) => SongModel.fromJson(item as Map<String, dynamic>))
-          .toList();
+      return songs.firstWhere((s) => s.songid == id);
     } catch (_) {
-      return List.from(_defaultSongs);
+      throw Exception('Lagu tidak ditemukan.');
     }
   }
 

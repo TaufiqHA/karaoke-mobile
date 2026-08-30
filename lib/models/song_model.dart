@@ -1,3 +1,5 @@
+import 'category_model.dart';
+
 class SongModel {
   final int songid;
   final String songtitle;
@@ -6,6 +8,9 @@ class SongModel {
   final int songcategory;
   final String? songnada;
   final String? songduration;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final CategoryModel? category;
 
   const SongModel({
     required this.songid,
@@ -15,6 +20,9 @@ class SongModel {
     required this.songcategory,
     this.songnada,
     this.songduration,
+    this.createdAt,
+    this.updatedAt,
+    this.category,
   });
 
   SongModel copyWith({
@@ -25,6 +33,9 @@ class SongModel {
     int? songcategory,
     String? songnada,
     String? songduration,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    CategoryModel? category,
   }) {
     return SongModel(
       songid: songid ?? this.songid,
@@ -34,10 +45,28 @@ class SongModel {
       songcategory: songcategory ?? this.songcategory,
       songnada: songnada ?? this.songnada,
       songduration: songduration ?? this.songduration,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      category: category ?? this.category,
     );
   }
 
   factory SongModel.fromJson(Map<String, dynamic> json) {
+    CategoryModel? parsedCategory;
+    if (json['category'] != null && json['category'] is Map<String, dynamic>) {
+      parsedCategory = CategoryModel.fromJson(json['category'] as Map<String, dynamic>);
+    }
+
+    DateTime? parsedCreatedAt;
+    if (json['created_at'] != null) {
+      parsedCreatedAt = DateTime.tryParse(json['created_at'].toString());
+    }
+
+    DateTime? parsedUpdatedAt;
+    if (json['updated_at'] != null) {
+      parsedUpdatedAt = DateTime.tryParse(json['updated_at'].toString());
+    }
+
     return SongModel(
       songid: json['songid'] is int
           ? json['songid'] as int
@@ -50,6 +79,9 @@ class SongModel {
           : int.tryParse(json['songcategory']?.toString() ?? '1') ?? 1,
       songnada: json['songnada'] as String?,
       songduration: json['songduration'] as String?,
+      createdAt: parsedCreatedAt,
+      updatedAt: parsedUpdatedAt,
+      category: parsedCategory,
     );
   }
 
@@ -62,6 +94,9 @@ class SongModel {
       'songcategory': songcategory,
       'songnada': songnada,
       'songduration': songduration,
+      if (createdAt != null) 'created_at': createdAt?.toIso8601String(),
+      if (updatedAt != null) 'updated_at': updatedAt?.toIso8601String(),
+      if (category != null) 'category': category?.toJson(),
     };
   }
 }

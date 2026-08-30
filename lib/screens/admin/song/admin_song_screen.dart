@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/api_category_service.dart';
+import '../../../core/services/api_song_service.dart';
 import '../../../core/services/category_service.dart';
 import '../../../core/services/dummy_category_service.dart';
 import '../../../core/services/dummy_song_service.dart';
@@ -35,8 +37,8 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
   @override
   void initState() {
     super.initState();
-    _songService = widget.songService ?? DummySongService();
-    _categoryService = widget.categoryService ?? DummyCategoryService();
+    _songService = widget.songService ?? ApiSongService();
+    _categoryService = widget.categoryService ?? ApiCategoryService();
     _searchController.addListener(_filterSongs);
     _loadData();
   }
@@ -52,7 +54,10 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
     return int.tryParse(numeric) ?? 1;
   }
 
-  String _getCategoryName(int categoryId) {
+  String _getCategoryName(int categoryId, {CategoryModel? embeddedCategory}) {
+    if (embeddedCategory != null && embeddedCategory.name.isNotEmpty) {
+      return embeddedCategory.name;
+    }
     final cat = _categories.firstWhere(
       (c) => _parseCategoryId(c.id) == categoryId,
       orElse: () => CategoryModel(
@@ -128,6 +133,7 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
     }
 
     final formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
 
     final result = await showDialog<bool>(
       context: context,
@@ -477,33 +483,48 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () async {
-                    if (formKey.currentState!.validate()) {
-                      if (isEditing) {
-                        final updated = song.copyWith(
-                          songtitle: titleController.text.trim(),
-                          songsinger: singerController.text.trim(),
-                          songurl: urlController.text.trim(),
-                          songcategory: selectedCategory,
-                          songnada: selectedNada?.trim().isNotEmpty == true ? selectedNada : null,
-                          songduration: durationController.text.trim().isNotEmpty ? durationController.text.trim() : null,
-                        );
-                        await _songService.updateSong(updated);
-                      } else {
-                        await _songService.createSong(
-                          songtitle: titleController.text.trim(),
-                          songsinger: singerController.text.trim(),
-                          songurl: urlController.text.trim(),
-                          songcategory: selectedCategory,
-                          songnada: selectedNada?.trim().isNotEmpty == true ? selectedNada : null,
-                          songduration: durationController.text.trim().isNotEmpty ? durationController.text.trim() : null,
-                        );
-                      }
-                      if (context.mounted) {
-                        Navigator.of(context).pop(true);
-                      }
-                    }
-                  },
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (formKey.currentState!.validate()) {
+                            setDialogState(() {
+                              isSubmitting = true;
+                            });
+                            try {
+                              if (isEditing) {
+                                final updated = song.copyWith(
+                                  songtitle: titleController.text.trim(),
+                                  songsinger: singerController.text.trim(),
+                                  songurl: urlController.text.trim(),
+                                  songcategory: selectedCategory,
+                                  songnada: selectedNada?.trim().isNotEmpty == true ? selectedNada : null,
+                                  songduration: durationController.text.trim().isNotEmpty ? durationController.text.trim() : null,
+                                );
+                                await _songService.updateSong(updated);
+                              } else {
+                                await _songService.createSong(
+                                  songtitle: titleController.text.trim(),
+                                  songsinger: singerController.text.trim(),
+                                  songurl: urlController.text.trim(),
+                                  songcategory: selectedCategory,
+                                  songnada: selectedNada?.trim().isNotEmpty == true ? selectedNada : null,
+                                  songduration: durationController.text.trim().isNotEmpty ? durationController.text.trim() : null,
+                                );
+                              }
+                              if (context.mounted) {
+                                Navigator.of(context).pop(true);
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                setDialogState(() {
+                                  isSubmitting = false;
+                                });
+                                final errText = e.toString().replaceAll('Exception: ', '');
+                                _showSnackbar(errText, AppColors.error);
+                              }
+                            }
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryElectric,
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -512,14 +533,23 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                     ),
                     elevation: 2,
                   ),
-                  child: const Text(
-                    'Simpan',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'Simpan',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ],
             );
@@ -538,69 +568,99 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
   }
 
   Future<void> _showDeleteDialog(SongModel song) async {
+    bool isDeleting = false;
+
     final deleted = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surfaceDark,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppColors.cardGlassBorder, width: 1.2),
-        ),
-        title: const Text(
-          'Hapus Lagu',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Apakah Anda yakin ingin menghapus lagu "${song.songtitle}" oleh ${song.songsinger}?',
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Tindakan ini tidak dapat dibatalkan.',
-                  style: TextStyle(color: AppColors.textMuted.withValues(alpha: 0.8), fontSize: 12),
-                ),
-              ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: AppColors.surfaceDark,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: AppColors.cardGlassBorder, width: 1.2),
             ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            child: const Text('Batal', style: TextStyle(color: AppColors.accentSky)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await _songService.deleteSong(song.songid);
-              if (context.mounted) {
-                Navigator.of(context).pop(true);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+            title: const Text(
+              'Hapus Lagu',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
               ),
             ),
-            child: const Text('Hapus', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Apakah Anda yakin ingin menghapus lagu "${song.songtitle}" oleh ${song.songsinger}?',
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tindakan ini tidak dapat dibatalkan.',
+                      style: TextStyle(color: AppColors.textMuted.withValues(alpha: 0.8), fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isDeleting ? null : () => Navigator.of(context).pop(false),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                child: const Text('Batal', style: TextStyle(color: AppColors.accentSky)),
+              ),
+              ElevatedButton(
+                onPressed: isDeleting
+                    ? null
+                    : () async {
+                        setDialogState(() {
+                          isDeleting = true;
+                        });
+                        try {
+                          await _songService.deleteSong(song.songid);
+                          if (context.mounted) {
+                            Navigator.of(context).pop(true);
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            setDialogState(() {
+                              isDeleting = false;
+                            });
+                            final errText = e.toString().replaceAll('Exception: ', '');
+                            _showSnackbar(errText, AppColors.error);
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: isDeleting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text('Hapus', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
 
@@ -880,7 +940,10 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                     delegate: SliverChildBuilderDelegate(
                       (context, index) {
                         final song = _filteredSongs[index];
-                        final categoryName = _getCategoryName(song.songcategory);
+                        final categoryName = _getCategoryName(
+                          song.songcategory,
+                          embeddedCategory: song.category,
+                        );
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10.0),
