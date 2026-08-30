@@ -29,6 +29,12 @@ class StorageService {
     return true;
   }
 
+  Future<bool> saveUser(UserModel user) async {
+    final prefs = _prefs ?? await SharedPreferences.getInstance();
+    await prefs.setString(_keyUser, jsonEncode(user.toJson()));
+    return true;
+  }
+
   Future<String?> getToken() async {
     final prefs = _prefs ?? await SharedPreferences.getInstance();
     return prefs.getString(_keyToken);

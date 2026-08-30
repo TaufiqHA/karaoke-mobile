@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'admin_home_screen.dart';
-import 'admin_placeholder_screen.dart';
 import 'category/admin_category_screen.dart';
+import 'setting/admin_setting_screen.dart';
 import 'song/admin_song_screen.dart';
 import 'user/admin_user_screen.dart';
+import '../profile/profile_screen.dart';
 
 class AdminNavItem {
   final String title;
@@ -39,12 +40,13 @@ final List<AdminNavItem> adminNavItems = [
     page: AdminUserScreen(),
   ),
   const AdminNavItem(
+    title: 'Profil Saya',
+    icon: Icons.person_rounded,
+    page: ProfileScreen(showBackButton: false),
+  ),
+  const AdminNavItem(
     title: 'Pengaturan',
     icon: Icons.settings_rounded,
-    page: AdminPlaceholderScreen(
-      title: 'Pengaturan Sistem',
-      description: 'Pengaturan aplikasi dan konfigurasi audio',
-      icon: Icons.settings_rounded,
-    ),
+    page: AdminSettingScreen(),
   ),
 ];

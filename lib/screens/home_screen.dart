@@ -3,6 +3,7 @@ import '../core/services/storage_service.dart';
 import '../core/theme/app_colors.dart';
 import '../models/user_model.dart';
 import 'login_screen.dart';
+import 'profile/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,6 +30,27 @@ class _HomeScreenState extends State<HomeScreen> {
         _currentUser = user;
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _openProfile() async {
+    final updatedUser = await Navigator.of(context).push<UserModel?>(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            ProfileScreen(initialUser: _currentUser),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
+
+    if (updatedUser != null && mounted) {
+      setState(() {
+        _currentUser = updatedUser;
+      });
+    } else if (mounted) {
+      _loadUserData();
     }
   }
 
@@ -120,57 +142,122 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.all(20.0),
                         child: Row(
                           children: [
-                            // User Avatar
-                            Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: AppColors.iconGradient,
-                                border: Border.all(
-                                  color: AppColors.accentCyan,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  displayName.isNotEmpty
-                                      ? displayName[0].toUpperCase()
-                                      : 'U',
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-
-                            // User Info
+                            // User Avatar & Info (Tappable to manage profile)
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Halo, $displayName 👋',
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
+                              child: InkWell(
+                                onTap: _openProfile,
+                                borderRadius: BorderRadius.circular(16),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 2.0),
+                                  child: Row(
+                                    children: [
+                                      // User Avatar
+                                      Container(
+                                        width: 50,
+                                        height: 50,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: AppColors.iconGradient,
+                                          border: Border.all(
+                                            color: AppColors.accentCyan,
+                                            width: 1.5,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: AppColors.accentCyan.withValues(alpha: 0.25),
+                                              blurRadius: 10,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Center(
+                                          child: _currentUser?.avatarUrl != null
+                                              ? Text(
+                                                  _currentUser!.avatarUrl!,
+                                                  style: const TextStyle(fontSize: 24),
+                                                )
+                                              : Text(
+                                                  displayName.isNotEmpty
+                                                      ? displayName[0].toUpperCase()
+                                                      : 'U',
+                                                  style: const TextStyle(
+                                                    fontSize: 22,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+
+                                      // User Info
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    'Halo, $displayName 👋',
+                                                    style: const TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.white,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  '@$username',
+                                                  style: const TextStyle(
+                                                    fontSize: 13,
+                                                    color: AppColors.accentSky,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                const Icon(
+                                                  Icons.arrow_forward_ios_rounded,
+                                                  size: 11,
+                                                  color: AppColors.accentSky,
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '@$username',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: AppColors.accentSky,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
+
+                            // Profile Button
+                            IconButton(
+                              onPressed: _openProfile,
+                              tooltip: 'Manajemen Profil',
+                              icon: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.accentCyan.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppColors.accentCyan.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.person_rounded,
+                                  color: AppColors.accentCyan,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(width: 4),
 
                             // Logout Button
                             IconButton(

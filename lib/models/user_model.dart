@@ -17,6 +17,24 @@ class UserModel {
 
   bool get isAdmin => role.toLowerCase() == 'admin';
 
+  UserModel copyWith({
+    String? id,
+    String? username,
+    String? displayName,
+    String? email,
+    String? avatarUrl,
+    String? role,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      displayName: displayName ?? this.displayName,
+      email: email ?? this.email,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      role: role ?? this.role,
+    );
+  }
+
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id'] as String? ?? '',

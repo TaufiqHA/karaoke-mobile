@@ -8,7 +8,11 @@ import 'package:karaoke_app/screens/admin/admin_sidebar.dart';
 import 'package:karaoke_app/screens/admin/category/admin_category_screen.dart';
 import 'package:karaoke_app/screens/admin/song/admin_song_screen.dart';
 import 'package:karaoke_app/screens/admin/user/admin_user_screen.dart';
+import 'package:karaoke_app/models/user_model.dart';
+import 'package:karaoke_app/screens/home_screen.dart';
 import 'package:karaoke_app/screens/login_screen.dart';
+import 'package:karaoke_app/screens/profile/profile_screen.dart';
+import 'package:karaoke_app/screens/admin/setting/admin_setting_screen.dart';
 import 'package:karaoke_app/screens/splash_screen.dart';
 
 void main() {
@@ -361,4 +365,209 @@ void main() {
     // Verifikasi user terhapus
     expect(find.text('budi_super'), findsNothing);
   });
+
+  testWidgets('Profile Screen renders user information and tabs correctly', (WidgetTester tester) async {
+    const testUser = UserModel(
+      id: 'usr_test_1',
+      username: 'karaoke_lover',
+      displayName: 'Karaoke King',
+      email: 'karaoke@sing.com',
+      role: 'user',
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ProfileScreen(initialUser: testUser),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verifikasi judul dan data user di header
+    expect(find.text('Manajemen Profil'), findsOneWidget);
+    expect(find.text('Karaoke King'), findsWidgets);
+    expect(find.text('@karaoke_lover'), findsOneWidget);
+    expect(find.text('MEMBER KARAOKE'), findsOneWidget);
+
+    // Verifikasi tab navigasi muncul (hanya Data Pribadi dan Keamanan)
+    expect(find.text('Data Pribadi'), findsOneWidget);
+    expect(find.text('Keamanan'), findsOneWidget);
+    expect(find.text('Preferensi'), findsNothing);
+
+    // Tab Data Pribadi aktif secara default
+    expect(find.text('Informasi Akun'), findsOneWidget);
+    expect(find.text('Nama Lengkap / Tampilan'), findsOneWidget);
+    expect(find.text('Simpan Perubahan'), findsOneWidget);
+  });
+
+  testWidgets('Profile Screen updates display name and email', (WidgetTester tester) async {
+    const testUser = UserModel(
+      id: 'usr_test_2',
+      username: 'budi_singer',
+      displayName: 'Budi Lama',
+      email: 'budi@old.com',
+      role: 'user',
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ProfileScreen(initialUser: testUser),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Edit nama tampilan
+    final displayNameFinder = find.widgetWithText(TextFormField, 'Budi Lama');
+    await tester.enterText(displayNameFinder, 'Budi Suara Emas');
+
+    // Edit email
+    final emailFinder = find.widgetWithText(TextFormField, 'budi@old.com');
+    await tester.enterText(emailFinder, 'budi@emas.com');
+
+    // Tap Simpan
+    await tester.tap(find.text('Simpan Perubahan'));
+    await tester.pumpAndSettle();
+
+    // Verifikasi notifikasi berhasil dan nama di header berubah
+    expect(find.text('Profil berhasil diperbarui!'), findsOneWidget);
+    expect(find.text('Budi Suara Emas'), findsWidgets);
+  });
+
+  testWidgets('Profile Screen change password validation and process', (WidgetTester tester) async {
+    const testUser = UserModel(
+      id: 'usr_test_3',
+      username: 'admin',
+      displayName: 'Admin Karaoke',
+      role: 'admin',
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ProfileScreen(initialUser: testUser),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Berpindah ke tab Keamanan
+    await tester.tap(find.text('Keamanan'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ubah Kata Sandi'), findsOneWidget);
+    expect(find.text('Kata Sandi Lama'), findsOneWidget);
+    expect(find.text('Kata Sandi Baru'), findsOneWidget);
+
+    // Coba submit kosong
+    await tester.tap(find.text('Perbarui Kata Sandi'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kata sandi lama wajib diisi'), findsOneWidget);
+    expect(find.text('Kata sandi baru wajib diisi'), findsOneWidget);
+
+    // Isi password lama 'admin123' (password default dummy admin)
+    final textFields = find.byType(TextFormField);
+    // Di tab Keamanan ada 3 field
+    await tester.enterText(textFields.at(0), 'admin123');
+    await tester.enterText(textFields.at(1), 'adminBaru123');
+    await tester.enterText(textFields.at(2), 'adminBaru123');
+
+    await tester.tap(find.text('Perbarui Kata Sandi'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kata sandi berhasil diperbarui!'), findsOneWidget);
+  });
+
+  testWidgets('HomeScreen navigates to ProfileScreen via profile button', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: HomeScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap tombol Manajemen Profil di header
+    final profileBtn = find.byTooltip('Manajemen Profil');
+    expect(profileBtn, findsOneWidget);
+    await tester.tap(profileBtn);
+    await tester.pumpAndSettle();
+
+    // Memverifikasi ProfileScreen terbuka
+    expect(find.byType(ProfileScreen), findsOneWidget);
+    expect(find.text('Manajemen Profil'), findsOneWidget);
+  });
+
+  testWidgets('Admin Main Layout navigates to ProfileScreen via Profil Saya tab', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AdminMainLayout(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap menu 'Profil Saya' di sidebar
+    await tester.tap(find.text('Profil Saya'));
+    await tester.pumpAndSettle();
+
+    // Verifikasi ProfileScreen tampil
+    expect(find.byType(ProfileScreen), findsOneWidget);
+    expect(find.text('Informasi Akun'), findsOneWidget);
+  });
+
+  testWidgets('Admin Setting Screen renders tb_application configuration and updates values', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: AdminSettingScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Verifikasi elemen-elemen tb_application tampil
+    expect(find.text('Pengaturan Aplikasi'), findsOneWidget);
+    expect(find.text('Profil & Instansi'), findsOneWidget);
+    expect(find.text('PT Karaoke Musik Nusantara'), findsOneWidget);
+    expect(find.text('Karaoke Mobile App'), findsOneWidget);
+    expect(find.text('Status Iklan Utama'), findsOneWidget);
+    expect(find.text('Status Iklan Bawah'), findsOneWidget);
+    expect(find.text('Tautan Link'), findsWidgets);
+    expect(find.text('Unggah Gambar'), findsWidgets);
+    expect(find.text('Simpan Pengaturan'), findsOneWidget);
+
+    // 2. Edit nama instansi
+    final companyFinder = find.widgetWithText(TextFormField, 'PT Karaoke Musik Nusantara');
+    await tester.enterText(companyFinder, 'PT Sing Star Indonesia');
+
+    // 3. Simpan pengaturan
+    await tester.tap(find.text('Simpan Pengaturan'));
+    await tester.pumpAndSettle();
+
+    // 4. Verifikasi notifikasi berhasil
+    expect(find.text('Pengaturan aplikasi berhasil disimpan!'), findsOneWidget);
+    expect(find.text('PT Sing Star Indonesia'), findsOneWidget);
+  });
+
+  testWidgets('Admin Main Layout navigates to Pengaturan tab', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AdminMainLayout(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap menu 'Pengaturan' di sidebar
+    await tester.tap(find.text('Pengaturan'));
+    await tester.pumpAndSettle();
+
+    // Verifikasi AdminSettingScreen tampil
+    expect(find.byType(AdminSettingScreen), findsOneWidget);
+    expect(find.text('Pengaturan Aplikasi'), findsOneWidget);
+  });
 }
+

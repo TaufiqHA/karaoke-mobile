@@ -144,6 +144,39 @@ class DummyUserService implements UserService {
     await _saveUsersToStorage(users);
   }
 
+  @override
+  Future<bool> changePassword({
+    required String username,
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    final trimmedUser = username.trim().toLowerCase();
+    final trimmedOldPass = oldPassword.trim();
+    final trimmedNewPass = newPassword.trim();
+
+    if (trimmedNewPass.length < 6) {
+      throw Exception('Password baru minimal 6 karakter');
+    }
+
+    final users = await getUsers();
+    final index = users.indexWhere(
+      (u) => u.username.trim().toLowerCase() == trimmedUser,
+    );
+
+    if (index != -1) {
+      final existingUser = users[index];
+      if (existingUser.password != trimmedOldPass) {
+        throw Exception('Password lama tidak sesuai');
+      }
+      users[index] = existingUser.copyWith(password: trimmedNewPass);
+      await _saveUsersToStorage(users);
+      return true;
+    }
+
+    // Jika user dibuat secara dinamis oleh dummy auth
+    return true;
+  }
+
   Future<void> _saveUsersToStorage(List<UserAccountModel> users) async {
     final prefs = await _getPrefs();
     final jsonList = users.map((u) => u.toJson()).toList();

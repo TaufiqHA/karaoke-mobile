@@ -48,6 +48,7 @@ class _AdminMainLayoutState extends State<AdminMainLayout> {
       setState(() {
         _selectedIndex = index;
       });
+      _loadUserData();
     }
 
     // Jika drawer terbuka pada layar kecil, tutup drawer setelah item dipilih
@@ -130,25 +131,6 @@ class _AdminMainLayoutState extends State<AdminMainLayout> {
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentCyan.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'ADMIN',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.accentSky,
-                      ),
                     ),
                   ),
                 ],
