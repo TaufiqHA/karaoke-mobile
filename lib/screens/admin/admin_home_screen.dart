@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/services/api_admin_service.dart';
 import '../../core/services/dummy_admin_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/admin_stats_model.dart';
@@ -20,7 +21,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _adminService = widget.adminService ?? DummyAdminService();
+    _adminService = widget.adminService ?? ApiAdminService();
     _loadStats();
   }
 
@@ -88,7 +89,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       ),
                     ),
                   )
-                else
+                else ...[
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final isWide = constraints.maxWidth > 600;
@@ -154,6 +155,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                             );
                     },
                   ),
+                ],
               ],
             ),
           ),

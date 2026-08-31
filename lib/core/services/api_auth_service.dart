@@ -5,6 +5,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
+import '../config/api_config.dart';
 import '../../models/user_model.dart';
 import 'auth_service.dart';
 import 'storage_service.dart';
@@ -14,7 +15,8 @@ class ApiAuthService implements AuthService {
   final StorageService? storageService;
   final String? _customBaseUrl;
 
-  static String? defaultCustomBaseUrl;
+  static String? get defaultCustomBaseUrl => ApiConfig.customBaseUrl;
+  static set defaultCustomBaseUrl(String? value) => ApiConfig.customBaseUrl = value;
 
   ApiAuthService({http.Client? client, this.storageService, String? baseUrl})
     : _client = client ?? http.Client(),
@@ -25,22 +27,7 @@ class ApiAuthService implements AuthService {
     if (custom != null && custom.isNotEmpty) {
       return custom;
     }
-    final defaultCustom = defaultCustomBaseUrl;
-    if (defaultCustom != null && defaultCustom.isNotEmpty) {
-      return defaultCustom;
-    }
-    if (kIsWeb) {
-      return 'http://localhost:8001/api';
-    }
-    try {
-      if (Platform.isAndroid) {
-        return 'http://127.0.0.1:8001/api'; // Host IP untuk HP fisik / Emulator
-      } else {
-        return 'http://127.0.0.1:8000/api'; // iOS Simulator / Desktop
-      }
-    } catch (_) {
-      return 'http://127.0.0.1:8000/api';
-    }
+    return ApiConfig.baseUrl;
   }
 
   Future<StorageService> _getStorage() async {

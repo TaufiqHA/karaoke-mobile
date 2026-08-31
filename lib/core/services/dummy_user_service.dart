@@ -11,24 +11,32 @@ class DummyUserService implements UserService {
     UserAccountModel(
       userid: 1,
       username: 'admin',
+      name: 'Administrator',
+      email: 'admin@example.com',
       password: 'admin123',
       role: 'admin',
     ),
     UserAccountModel(
       userid: 2,
       username: 'operator',
+      name: 'Operator Karaoke',
+      email: 'operator@example.com',
       password: 'operator123',
       role: 'admin',
     ),
     UserAccountModel(
       userid: 3,
       username: 'karaoke_lover',
+      name: 'Karaoke Lover',
+      email: 'lover@example.com',
       password: 'user123',
       role: 'user',
     ),
     UserAccountModel(
       userid: 4,
       username: 'singing_star',
+      name: 'Singing Star',
+      email: 'star@example.com',
       password: 'star123',
       role: 'user',
     ),
@@ -39,25 +47,42 @@ class DummyUserService implements UserService {
   }
 
   @override
-  Future<List<UserAccountModel>> getUsers() async {
+  Future<List<UserAccountModel>> getUsers({String? search, String? role}) async {
     final prefs = await _getPrefs();
     final jsonString = prefs.getString(_keyUsers);
 
+    List<UserAccountModel> users;
     if (jsonString == null || jsonString.isEmpty) {
       await _saveUsersToStorage(_defaultUsers);
-      return List.from(_defaultUsers);
+      users = List.from(_defaultUsers);
+    } else {
+      try {
+        final List<dynamic> decoded = jsonDecode(jsonString);
+        users = decoded
+            .map((item) => UserAccountModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      } catch (_) {
+        await _saveUsersToStorage(_defaultUsers);
+        users = List.from(_defaultUsers);
+      }
     }
 
-    try {
-      final List<dynamic> decoded = jsonDecode(jsonString);
-      final users = decoded
-          .map((item) => UserAccountModel.fromJson(item as Map<String, dynamic>))
-          .toList();
-      return users;
-    } catch (_) {
-      await _saveUsersToStorage(_defaultUsers);
-      return List.from(_defaultUsers);
+    if (search != null && search.trim().isNotEmpty) {
+      final q = search.trim().toLowerCase();
+      users = users.where((u) {
+        final matchUsername = u.username.toLowerCase().contains(q);
+        final matchName = u.name?.toLowerCase().contains(q) ?? false;
+        final matchEmail = u.email?.toLowerCase().contains(q) ?? false;
+        final matchId = '#${u.userid}'.contains(q) || '${u.userid}'.contains(q);
+        return matchUsername || matchName || matchEmail || matchId;
+      }).toList();
     }
+
+    if (role != null && role.trim().isNotEmpty) {
+      users = users.where((u) => u.role.toLowerCase() == role.trim().toLowerCase()).toList();
+    }
+
+    return users;
   }
 
   @override
@@ -74,6 +99,8 @@ class DummyUserService implements UserService {
     required String username,
     required String password,
     required String role,
+    String? name,
+    String? email,
   }) async {
     final trimmedUsername = username.trim();
     if (trimmedUsername.isEmpty) {
@@ -97,8 +124,14 @@ class DummyUserService implements UserService {
     final newUser = UserAccountModel(
       userid: nextId,
       username: trimmedUsername,
+      name: (name != null && name.trim().isNotEmpty) ? name.trim() : trimmedUsername,
+      email: (email != null && email.trim().isNotEmpty)
+          ? email.trim()
+          : '${trimmedUsername.toLowerCase()}@karaoke.local',
       password: password.trim(),
       role: role.trim().toLowerCase() == 'admin' ? 'admin' : 'user',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
 
     users.add(newUser);
@@ -128,8 +161,13 @@ class DummyUserService implements UserService {
 
     final updatedUser = user.copyWith(
       username: trimmedUsername,
+      name: user.name?.trim().isNotEmpty == true ? user.name!.trim() : trimmedUsername,
+      email: user.email?.trim().isNotEmpty == true
+          ? user.email!.trim()
+          : '${trimmedUsername.toLowerCase()}@karaoke.local',
       password: user.password.trim(),
       role: user.role.trim().toLowerCase() == 'admin' ? 'admin' : 'user',
+      updatedAt: DateTime.now(),
     );
 
     users[index] = updatedUser;

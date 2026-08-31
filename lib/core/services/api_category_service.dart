@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 import '../../models/category_model.dart';
-import 'api_auth_service.dart';
 import 'category_service.dart';
 import 'dummy_category_service.dart';
 import 'storage_service.dart';
@@ -28,19 +27,7 @@ class ApiCategoryService implements CategoryService {
     if (custom != null && custom.isNotEmpty) {
       return custom;
     }
-    final defaultUrl = ApiAuthService.defaultCustomBaseUrl;
-    if (defaultUrl != null && defaultUrl.isNotEmpty) {
-      return defaultUrl;
-    }
-    try {
-      if (Platform.isAndroid) {
-        return 'http://127.0.0.1:8001/api';
-      } else {
-        return 'http://127.0.0.1:8000/api';
-      }
-    } catch (_) {
-      return 'http://127.0.0.1:8000/api';
-    }
+    return ApiConfig.baseUrl;
   }
 
   Future<StorageService> _getStorage() async {

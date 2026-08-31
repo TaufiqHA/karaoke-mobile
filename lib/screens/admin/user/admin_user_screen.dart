@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/services/api_user_service.dart';
 import '../../../core/services/dummy_user_service.dart';
 import '../../../core/services/user_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -25,7 +27,7 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
   @override
   void initState() {
     super.initState();
-    _userService = widget.userService ?? DummyUserService();
+    _userService = widget.userService ?? ApiUserService();
     _loadUsers();
   }
 
@@ -59,12 +61,17 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
 
     setState(() {
       _filteredUsers = _users.where((u) {
-        final matchQuery = query.isEmpty ||
+        final matchQuery =
+            query.isEmpty ||
             u.username.toLowerCase().contains(query) ||
+            (u.name?.toLowerCase().contains(query) ?? false) ||
+            (u.email?.toLowerCase().contains(query) ?? false) ||
             u.role.toLowerCase().contains(query) ||
-            '#${u.userid}'.contains(query);
+            '#${u.userid}'.contains(query) ||
+            '${u.userid}'.contains(query);
 
-        final matchRole = _selectedRoleFilter == null ||
+        final matchRole =
+            _selectedRoleFilter == null ||
             u.role.toLowerCase() == _selectedRoleFilter!.toLowerCase();
 
         return matchQuery && matchRole;
@@ -80,7 +87,9 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
         content: Row(
           children: [
             Icon(
-              isError ? Icons.error_outline_rounded : Icons.check_circle_rounded,
+              isError
+                  ? Icons.error_outline_rounded
+                  : Icons.check_circle_rounded,
               color: Colors.white,
               size: 20,
             ),
@@ -120,7 +129,10 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.primaryElectric, width: 1.5),
+        borderSide: const BorderSide(
+          color: AppColors.primaryElectric,
+          width: 1.5,
+        ),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -135,9 +147,17 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
 
   Future<void> _showUserFormDialog({UserAccountModel? user}) async {
     final isEditing = user != null;
-    final usernameController = TextEditingController(text: user?.username ?? '');
-    final passwordController = TextEditingController(text: user?.password ?? '');
-    String selectedRole = user?.role.toLowerCase() == 'admin' ? 'admin' : 'user';
+    final usernameController = TextEditingController(
+      text: user?.username ?? '',
+    );
+    final passwordController = TextEditingController(
+      text: user?.password ?? '',
+    );
+    final nameController = TextEditingController(text: user?.name ?? '');
+    final emailController = TextEditingController(text: user?.email ?? '');
+    String selectedRole = user?.role.toLowerCase() == 'admin'
+        ? 'admin'
+        : 'user';
     bool obscurePassword = true;
 
     final formKey = GlobalKey<FormState>();
@@ -149,13 +169,19 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: AppColors.surfaceDark,
-              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 24,
+              ),
               titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
               actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
-                side: const BorderSide(color: AppColors.cardGlassBorder, width: 1.2),
+                side: const BorderSide(
+                  color: AppColors.cardGlassBorder,
+                  width: 1.2,
+                ),
               ),
               title: Row(
                 children: [
@@ -166,7 +192,9 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
-                      isEditing ? Icons.manage_accounts_rounded : Icons.person_add_alt_1_rounded,
+                      isEditing
+                          ? Icons.manage_accounts_rounded
+                          : Icons.person_add_alt_1_rounded,
                       color: AppColors.accentCyan,
                       size: 22,
                     ),
@@ -183,7 +211,11 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 20),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.textMuted,
+                      size: 20,
+                    ),
                     tooltip: 'Tutup',
                     visualDensity: VisualDensity.compact,
                     onPressed: () => Navigator.of(context).pop(false),
@@ -201,7 +233,7 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Username
+                          // 1. Username
                           const Text(
                             'Username *',
                             style: TextStyle(
@@ -215,12 +247,23 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                             controller: usernameController,
                             autofocus: !isEditing,
                             maxLength: 30,
-                            buildCounter: (context, {required currentLength, required isFocused, maxLength}) =>
-                                Text(
-                              '$currentLength/$maxLength',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                            buildCounter:
+                                (
+                                  context, {
+                                  required currentLength,
+                                  required isFocused,
+                                  maxLength,
+                                }) => Text(
+                                  '$currentLength/$maxLength',
+                                  style: const TextStyle(
+                                    color: AppColors.textMuted,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
                             ),
-                            style: const TextStyle(color: Colors.white, fontSize: 14),
                             decoration: _inputDecoration(
                               hint: 'Contoh: johndoe, admin_karaoke',
                               icon: Icons.alternate_email_rounded,
@@ -232,7 +275,8 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                               if (value.trim().length > 30) {
                                 return 'Username maksimal 30 karakter';
                               }
-                              if (!RegExp(r'^[a-zA-Z0-9_.-]+$').hasMatch(value.trim())) {
+                              if (!RegExp(r'^[a-zA-Z0-9_.-]+$')
+                                  .hasMatch(value.trim())) {
                                 return 'Hanya huruf, angka, titik, underscore, dan strip';
                               }
                               return null;
@@ -240,7 +284,7 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          // Password
+                          // 2. Password
                           const Text(
                             'Password *',
                             style: TextStyle(
@@ -253,13 +297,20 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                           TextFormField(
                             controller: passwordController,
                             obscureText: obscurePassword,
-                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
                             decoration: _inputDecoration(
-                              hint: isEditing ? 'Masukkan password baru / tetap' : 'Minimal 4 karakter',
+                              hint: isEditing
+                                  ? 'Masukkan password baru / tetap'
+                                  : 'Minimal 4 karakter (API min 8)',
                               icon: Icons.lock_outline_rounded,
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                  obscurePassword
+                                      ? Icons.visibility_off_rounded
+                                      : Icons.visibility_rounded,
                                   color: AppColors.textMuted,
                                   size: 18,
                                 ),
@@ -282,7 +333,63 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          // Role Selector (Segmented Button: Admin / User)
+                          // 3. Nama Lengkap (Opsional di UI, otomatis terisi username jika kosong)
+                          const Text(
+                            'Nama Lengkap',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: nameController,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                            decoration: _inputDecoration(
+                              hint: 'Contoh: John Doe (Opsional)',
+                              icon: Icons.badge_outlined,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // 4. Email (Opsional di UI, otomatis terisi username@karaoke.local jika kosong)
+                          const Text(
+                            'Email',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                            ),
+                            decoration: _inputDecoration(
+                              hint: 'Contoh: john@example.com (Opsional)',
+                              icon: Icons.email_outlined,
+                            ),
+                            validator: (value) {
+                              if (value != null && value.trim().isNotEmpty) {
+                                if (!value.contains('@') ||
+                                    !value.contains('.')) {
+                                  return 'Format email tidak valid';
+                                }
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
+
+                          // 5. Role Selector (Segmented Button: Admin / User)
                           const Text(
                             'Peran Pengguna (Role) *',
                             style: TextStyle(
@@ -312,7 +419,9 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                                       });
                                     },
                                     child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 180),
+                                      duration: const Duration(
+                                        milliseconds: 180,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: selectedRole == 'admin'
                                             ? Colors.amber.shade700
@@ -321,7 +430,8 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                                       ),
                                       child: Center(
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
                                             Icon(
                                               Icons.shield_rounded,
@@ -335,7 +445,8 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                                               'Administrator',
                                               style: TextStyle(
                                                 fontSize: 13,
-                                                fontWeight: selectedRole == 'admin'
+                                                fontWeight:
+                                                    selectedRole == 'admin'
                                                     ? FontWeight.bold
                                                     : FontWeight.w500,
                                                 color: selectedRole == 'admin'
@@ -360,7 +471,9 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                                       });
                                     },
                                     child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 180),
+                                      duration: const Duration(
+                                        milliseconds: 180,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: selectedRole == 'user'
                                             ? AppColors.primaryElectric
@@ -369,7 +482,8 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                                       ),
                                       child: Center(
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
                                             Icon(
                                               Icons.person_rounded,
@@ -383,7 +497,8 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                                               'User Biasa',
                                               style: TextStyle(
                                                 fontSize: 13,
-                                                fontWeight: selectedRole == 'user'
+                                                fontWeight:
+                                                    selectedRole == 'user'
                                                     ? FontWeight.bold
                                                     : FontWeight.w500,
                                                 color: selectedRole == 'user'
@@ -410,7 +525,10 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
                   ),
                   child: const Text(
                     'Batal',
@@ -426,6 +544,17 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                     if (formKey.currentState!.validate()) {
                       final inputUsername = usernameController.text.trim();
                       final inputPassword = passwordController.text.trim();
+                      final inputName = nameController.text.trim();
+                      final inputEmail = emailController.text.trim();
+
+                      final finalName = inputName.isNotEmpty
+                          ? inputName
+                          : inputUsername;
+                      final finalEmail = inputEmail.isNotEmpty
+                          ? inputEmail
+                          : (user?.email?.isNotEmpty == true
+                                ? user!.email!
+                                : '${inputUsername.toLowerCase()}@karaoke.local');
 
                       // Check uniqueness
                       final isExists = await _userService.isUsernameExists(
@@ -435,7 +564,10 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
 
                       if (isExists) {
                         if (context.mounted) {
-                          _showSnackBar('Username "$inputUsername" sudah digunakan', isError: true);
+                          _showSnackBar(
+                            'Username "$inputUsername" sudah digunakan',
+                            isError: true,
+                          );
                         }
                         return;
                       }
@@ -446,6 +578,8 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                             username: inputUsername,
                             password: inputPassword,
                             role: selectedRole,
+                            name: finalName,
+                            email: finalEmail,
                           );
                           await _userService.updateUser(updated);
                         } else {
@@ -453,6 +587,8 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                             username: inputUsername,
                             password: inputPassword,
                             role: selectedRole,
+                            name: finalName,
+                            email: finalEmail,
                           );
                         }
                         if (context.mounted) {
@@ -460,7 +596,14 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                         }
                       } catch (e) {
                         if (context.mounted) {
-                          _showSnackBar('Gagal menyimpan pengguna: $e', isError: true);
+                          final msg = e.toString().replaceFirst(
+                            'Exception: ',
+                            '',
+                          );
+                          _showSnackBar(
+                            'Gagal menyimpan pengguna: $msg',
+                            isError: true,
+                          );
                         }
                       }
                     }
@@ -468,7 +611,10 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryElectric,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -476,7 +622,10 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                   ),
                   child: Text(
                     isEditing ? 'Simpan Perubahan' : 'Simpan Pengguna',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ],
@@ -487,7 +636,11 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
     );
 
     if (result == true) {
-      _showSnackBar(isEditing ? 'Data pengguna berhasil diperbarui' : 'Pengguna baru berhasil ditambahkan');
+      _showSnackBar(
+        isEditing
+            ? 'Data pengguna berhasil diperbarui'
+            : 'Pengguna baru berhasil ditambahkan',
+      );
       _loadUsers();
     }
   }
@@ -498,13 +651,19 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: AppColors.surfaceDark,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 24,
+          ),
           titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
           actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: AppColors.cardGlassBorder, width: 1.2),
+            side: const BorderSide(
+              color: AppColors.cardGlassBorder,
+              width: 1.2,
+            ),
           ),
           title: Row(
             children: [
@@ -532,7 +691,11 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 20),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: AppColors.textMuted,
+                  size: 20,
+                ),
                 tooltip: 'Tutup',
                 visualDensity: VisualDensity.compact,
                 onPressed: () => Navigator.of(context).pop(false),
@@ -541,22 +704,37 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
           ),
           content: Text(
             'Apakah Anda yakin ingin menghapus akun pengguna "${user.username}" (ID: #${user.userid})?\n\nTindakan ini tidak dapat dibatalkan.',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              height: 1.4,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Batal', style: TextStyle(color: AppColors.textMuted)),
+              child: const Text(
+                'Batal',
+                style: TextStyle(color: AppColors.textMuted),
+              ),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.error,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-              child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Hapus',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );
@@ -569,7 +747,8 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
         _showSnackBar('Pengguna "${user.username}" berhasil dihapus');
         _loadUsers();
       } catch (e) {
-        _showSnackBar('Gagal menghapus pengguna: $e', isError: true);
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        _showSnackBar('Gagal menghapus pengguna: $msg', isError: true);
       }
     }
   }
@@ -607,9 +786,14 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                           ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: AppColors.primaryElectric.withValues(alpha: 0.25),
+                              color: AppColors.primaryElectric.withValues(
+                                alpha: 0.25,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -624,7 +808,11 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                           const Spacer(),
                           ElevatedButton.icon(
                             onPressed: () => _showUserFormDialog(),
-                            icon: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                            icon: const Icon(
+                              Icons.add_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            ),
                             label: const Text(
                               'Tambah User',
                               style: TextStyle(
@@ -635,7 +823,10 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primaryElectric,
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -653,14 +844,28 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                         child: TextField(
                           controller: _searchController,
                           onChanged: (_) => _applyFilters(),
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
                           decoration: InputDecoration(
                             hintText: 'Cari username, ID (#1), atau role...',
-                            hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
-                            prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textMuted, size: 20),
+                            hintStyle: const TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 13,
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.search_rounded,
+                              color: AppColors.textMuted,
+                              size: 20,
+                            ),
                             suffixIcon: _searchController.text.isNotEmpty
                                 ? IconButton(
-                                    icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 16),
+                                    icon: const Icon(
+                                      Icons.close_rounded,
+                                      color: AppColors.textMuted,
+                                      size: 16,
+                                    ),
                                     onPressed: () {
                                       _searchController.clear();
                                       _applyFilters();
@@ -669,18 +874,28 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                                 : null,
                             filled: true,
                             fillColor: AppColors.cardGlass,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 0,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: AppColors.cardGlassBorder),
+                              borderSide: const BorderSide(
+                                color: AppColors.cardGlassBorder,
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: AppColors.cardGlassBorder),
+                              borderSide: const BorderSide(
+                                color: AppColors.cardGlassBorder,
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: const BorderSide(color: AppColors.accentCyan, width: 1.2),
+                              borderSide: const BorderSide(
+                                color: AppColors.accentCyan,
+                                width: 1.2,
+                              ),
                             ),
                           ),
                         ),
@@ -708,8 +923,12 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                               backgroundColor: AppColors.cardGlass,
                               labelStyle: TextStyle(
                                 fontSize: 12,
-                                fontWeight: _selectedRoleFilter == null ? FontWeight.bold : FontWeight.normal,
-                                color: _selectedRoleFilter == null ? Colors.white : AppColors.textSecondary,
+                                fontWeight: _selectedRoleFilter == null
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: _selectedRoleFilter == null
+                                    ? Colors.white
+                                    : AppColors.textSecondary,
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -726,7 +945,9 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                               selected: _selectedRoleFilter == 'admin',
                               onSelected: (selected) {
                                 setState(() {
-                                  _selectedRoleFilter = selected ? 'admin' : null;
+                                  _selectedRoleFilter = selected
+                                      ? 'admin'
+                                      : null;
                                   _applyFilters();
                                 });
                               },
@@ -734,8 +955,12 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                               backgroundColor: AppColors.cardGlass,
                               labelStyle: TextStyle(
                                 fontSize: 12,
-                                fontWeight: _selectedRoleFilter == 'admin' ? FontWeight.bold : FontWeight.normal,
-                                color: _selectedRoleFilter == 'admin' ? Colors.white : AppColors.textSecondary,
+                                fontWeight: _selectedRoleFilter == 'admin'
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: _selectedRoleFilter == 'admin'
+                                    ? Colors.white
+                                    : AppColors.textSecondary,
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -752,7 +977,9 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                               selected: _selectedRoleFilter == 'user',
                               onSelected: (selected) {
                                 setState(() {
-                                  _selectedRoleFilter = selected ? 'user' : null;
+                                  _selectedRoleFilter = selected
+                                      ? 'user'
+                                      : null;
                                   _applyFilters();
                                 });
                               },
@@ -760,8 +987,12 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                               backgroundColor: AppColors.cardGlass,
                               labelStyle: TextStyle(
                                 fontSize: 12,
-                                fontWeight: _selectedRoleFilter == 'user' ? FontWeight.bold : FontWeight.normal,
-                                color: _selectedRoleFilter == 'user' ? Colors.white : AppColors.textSecondary,
+                                fontWeight: _selectedRoleFilter == 'user'
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: _selectedRoleFilter == 'user'
+                                    ? Colors.white
+                                    : AppColors.textSecondary,
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
@@ -785,7 +1016,9 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                 const SliverFillRemaining(
                   child: Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentCyan),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.accentCyan,
+                      ),
                     ),
                   ),
                 )
@@ -826,110 +1059,164 @@ class _AdminUserScreenState extends State<AdminUserScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final user = _filteredUsers[index];
-                        final isAdmin = user.isAdmin;
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final user = _filteredUsers[index];
+                      final isAdmin = user.isAdmin;
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10.0),
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: AppColors.cardGlass,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: AppColors.cardGlassBorder,
-                                width: 0.8,
-                              ),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10.0),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.cardGlass,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: AppColors.cardGlassBorder,
+                              width: 0.8,
                             ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                // Avatar (42x42 with AppColors.cardGradient & 10 radius)
-                                Container(
-                                  width: 42,
-                                  height: 42,
-                                  decoration: BoxDecoration(
-                                    gradient: AppColors.cardGradient,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: AppColors.accentCyan.withValues(alpha: 0.3),
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Icon(
-                                      isAdmin ? Icons.shield_rounded : Icons.person_rounded,
-                                      color: isAdmin ? Colors.amberAccent : AppColors.accentCyan,
-                                      size: 22,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Avatar (42x42 with AppColors.cardGradient & 10 radius)
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  gradient: AppColors.cardGradient,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: AppColors.accentCyan.withValues(
+                                      alpha: 0.3,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 14),
+                                child: Center(
+                                  child: Icon(
+                                    isAdmin
+                                        ? Icons.shield_rounded
+                                        : Icons.person_rounded,
+                                    color: isAdmin
+                                        ? Colors.amberAccent
+                                        : AppColors.accentCyan,
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
 
-                                // User Details (Single Clean Row)
-                                Expanded(
-                                  child: Row(
-                                    children: [
-                                      Flexible(
-                                        child: Text(
-                                          user.username,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
+                              // User Details (Single Clean Column with Subtitle if available)
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            user.username,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      // Role Badge (Identical with Song Category Badge)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: (isAdmin ? Colors.amber : AppColors.primaryElectric)
-                                              .withValues(alpha: 0.2),
-                                          borderRadius: BorderRadius.circular(6),
-                                          border: Border.all(
-                                            color: (isAdmin ? Colors.amberAccent : AppColors.accentCyan)
-                                                .withValues(alpha: 0.3),
-                                            width: 0.8,
+                                        const SizedBox(width: 8),
+                                        // Role Badge (Identical with Song Category Badge)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                (isAdmin
+                                                        ? Colors.amber
+                                                        : AppColors
+                                                              .primaryElectric)
+                                                    .withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                            border: Border.all(
+                                              color:
+                                                  (isAdmin
+                                                          ? Colors.amberAccent
+                                                          : AppColors
+                                                                .accentCyan)
+                                                      .withValues(alpha: 0.3),
+                                              width: 0.8,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            user.role.toUpperCase(),
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w500,
+                                              color: isAdmin
+                                                  ? Colors.amberAccent
+                                                  : AppColors.accentLight,
+                                            ),
                                           ),
                                         ),
-                                        child: Text(
-                                          user.role.toUpperCase(),
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                            color: isAdmin ? Colors.amberAccent : AppColors.accentLight,
-                                          ),
+                                      ],
+                                    ),
+                                    if ((user.name != null &&
+                                            user.name!.trim().isNotEmpty &&
+                                            user.name!.trim() !=
+                                                user.username) ||
+                                        (user.email != null &&
+                                            user.email!.trim().isNotEmpty)) ...[
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        [
+                                          if (user.name != null &&
+                                              user.name!.trim().isNotEmpty &&
+                                              user.name!.trim() !=
+                                                  user.username)
+                                            user.name!.trim(),
+                                          if (user.email != null &&
+                                              user.email!.trim().isNotEmpty)
+                                            user.email!.trim(),
+                                        ].join(' • '),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textMuted,
                                         ),
                                       ),
                                     ],
-                                  ),
+                                  ],
                                 ),
+                              ),
 
-                                // Actions (Identical with AdminSongScreen & AdminCategoryScreen)
-                                IconButton(
-                                  icon: const Icon(Icons.edit_rounded, size: 20),
-                                  color: AppColors.accentCyan,
-                                  tooltip: 'Ubah',
-                                  onPressed: () => _showUserFormDialog(user: user),
+                              // Actions (Identical with AdminSongScreen & AdminCategoryScreen)
+                              IconButton(
+                                icon: const Icon(Icons.edit_rounded, size: 20),
+                                color: AppColors.accentCyan,
+                                tooltip: 'Ubah',
+                                onPressed: () =>
+                                    _showUserFormDialog(user: user),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete_rounded,
+                                  size: 20,
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_rounded, size: 20),
-                                  color: AppColors.error,
-                                  tooltip: 'Hapus',
-                                  onPressed: () => _showDeleteConfirmDialog(user),
-                                ),
-                              ],
-                            ),
+                                color: AppColors.error,
+                                tooltip: 'Hapus',
+                                onPressed: () => _showDeleteConfirmDialog(user),
+                              ),
+                            ],
                           ),
-                        );
-                      },
-                      childCount: _filteredUsers.length,
-                    ),
+                        ),
+                      );
+                    }, childCount: _filteredUsers.length),
                   ),
                 ),
             ],

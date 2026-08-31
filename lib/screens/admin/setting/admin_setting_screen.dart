@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/services/api_application_service.dart';
 import '../../../core/services/application_service.dart';
 import '../../../core/services/dummy_application_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -47,7 +48,7 @@ class _AdminSettingScreenState extends State<AdminSettingScreen> {
   @override
   void initState() {
     super.initState();
-    _applicationService = widget.applicationService ?? DummyApplicationService();
+    _applicationService = widget.applicationService ?? ApiApplicationService();
     _loadConfig();
   }
 
@@ -248,15 +249,19 @@ class _AdminSettingScreenState extends State<AdminSettingScreen> {
     );
 
     try {
-      await _applicationService.updateApplicationConfig(updatedConfig);
+      final saved = await _applicationService.updateApplicationConfig(updatedConfig);
       if (mounted) {
-        setState(() => _isSaving = false);
+        setState(() {
+          _applicationId = saved.applicationid;
+          _isSaving = false;
+        });
         _showSnackBar('Pengaturan aplikasi berhasil disimpan!');
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        _showSnackBar('Gagal menyimpan pengaturan: $e', isError: true);
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        _showSnackBar('Gagal menyimpan pengaturan: $msg', isError: true);
       }
     }
   }
