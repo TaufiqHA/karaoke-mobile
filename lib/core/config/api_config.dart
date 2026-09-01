@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 /// Cukup ubah konfigurasi di file ini untuk mengubah endpoint seluruh aplikasi.
 class ApiConfig {
   /// Host/IP default untuk backend (misal '127.0.0.1', '10.0.2.2', atau IP LAN seperti '192.168.1.50')
-  static const String defaultHost = '127.0.0.1';
+  static const String defaultHost = '192.168.100.145';
 
   /// Port default untuk Android
   static const String androidPort = '8001';

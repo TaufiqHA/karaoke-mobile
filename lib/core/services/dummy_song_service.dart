@@ -12,7 +12,7 @@ class DummySongService implements SongService {
       songid: 1,
       songtitle: 'Sial',
       songsinger: 'Mahalini',
-      songurl: 'https://example.com/audio/sial-mahalini.mp3',
+      songurl: 'https://www.youtube.com/watch?v=0kFh_0l33rM',
       songcategory: 1,
       songnada: 'Wanita',
       songduration: '04:03',
@@ -21,7 +21,7 @@ class DummySongService implements SongService {
       songid: 2,
       songtitle: 'Rungkad',
       songsinger: 'Happy Asmara',
-      songurl: 'https://example.com/audio/rungkad-happy-asmara.mp3',
+      songurl: 'https://www.youtube.com/watch?v=4E-l_P4_pYQ',
       songcategory: 2,
       songnada: 'Wanita',
       songduration: '04:15',
@@ -30,7 +30,7 @@ class DummySongService implements SongService {
       songid: 3,
       songtitle: 'Separuh Nafas',
       songsinger: 'Dewa 19',
-      songurl: 'https://example.com/audio/separuh-nafas-dewa19.mp3',
+      songurl: 'https://www.youtube.com/watch?v=vVj44t-j3tA',
       songcategory: 3,
       songnada: 'Pria',
       songduration: '03:45',
@@ -39,7 +39,7 @@ class DummySongService implements SongService {
       songid: 4,
       songtitle: 'Perfect',
       songsinger: 'Ed Sheeran',
-      songurl: 'https://example.com/audio/perfect-ed-sheeran.mp3',
+      songurl: 'https://www.youtube.com/watch?v=2Vv-BfVoq4g',
       songcategory: 4,
       songnada: 'Pria',
       songduration: '04:23',
@@ -48,7 +48,7 @@ class DummySongService implements SongService {
       songid: 5,
       songtitle: 'Komang',
       songsinger: 'Raim Laode',
-      songurl: 'https://example.com/audio/komang-raim-laode.mp3',
+      songurl: 'https://www.youtube.com/watch?v=UqNZZq3KzM4',
       songcategory: 1,
       songnada: 'Pria',
       songduration: '03:42',
@@ -57,7 +57,7 @@ class DummySongService implements SongService {
       songid: 6,
       songtitle: 'Nemen',
       songsinger: 'Gildcoustic',
-      songurl: 'https://example.com/audio/nemen-gildcoustic.mp3',
+      songurl: 'https://www.youtube.com/watch?v=fM87R5-G5x8',
       songcategory: 2,
       songnada: 'Pria',
       songduration: '04:50',
@@ -66,7 +66,7 @@ class DummySongService implements SongService {
       songid: 7,
       songtitle: 'Dynamite',
       songsinger: 'BTS',
-      songurl: 'https://example.com/audio/dynamite-bts.mp3',
+      songurl: 'https://www.youtube.com/watch?v=gdZLi9oWNZg',
       songcategory: 5,
       songnada: 'Pria',
       songduration: '03:19',
@@ -86,6 +86,7 @@ class DummySongService implements SongService {
 
     if (jsonString == null || jsonString.isEmpty) {
       await _saveAll(_defaultSongs);
+      await prefs.setBool('migrated_youtube_urls_v1', true);
       songs = List.from(_defaultSongs);
     } else {
       try {
@@ -93,6 +94,14 @@ class DummySongService implements SongService {
         songs = decoded
             .map((item) => SongModel.fromJson(item as Map<String, dynamic>))
             .toList();
+
+        // Jalankan migrasi satu kali untuk memperbarui cache dummy legacy ke URL YouTube
+        final bool isMigrated = prefs.getBool('migrated_youtube_urls_v1') ?? false;
+        if (!isMigrated) {
+          await _saveAll(_defaultSongs);
+          await prefs.setBool('migrated_youtube_urls_v1', true);
+          songs = List.from(_defaultSongs);
+        }
       } catch (_) {
         songs = List.from(_defaultSongs);
       }

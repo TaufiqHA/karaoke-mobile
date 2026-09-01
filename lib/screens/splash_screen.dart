@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 import 'admin/admin_main_layout.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
+import 'user/user_main_layout.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -89,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen>
         if (isUserLoggedIn && user != null) {
           destination = user.isAdmin
               ? const AdminMainLayout()
-              : const HomeScreen();
+              : const UserMainLayout();
         }
       } catch (_) {
         destination = const LoginScreen();

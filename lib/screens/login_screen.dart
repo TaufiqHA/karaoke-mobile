@@ -4,6 +4,7 @@ import '../core/services/auth_service.dart';
 import '../core/theme/app_colors.dart';
 import 'admin/admin_main_layout.dart';
 import 'home_screen.dart';
+import 'user/user_main_layout.dart';
 
 class LoginScreen extends StatefulWidget {
   final AuthService? authService;
@@ -74,9 +75,9 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
 
-        final destination = (response.user?.isAdmin ?? true)
+        final destination = (response.user?.isAdmin ?? false)
             ? const AdminMainLayout()
-            : const HomeScreen();
+            : const UserMainLayout();
 
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(

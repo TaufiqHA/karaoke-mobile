@@ -289,7 +289,7 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
 
                           // URL Lagu / Media
                           const Text(
-                            'URL Lagu / Media *',
+                            'URL Video YouTube / Lagu *',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -301,12 +301,12 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                             controller: urlController,
                             style: const TextStyle(color: Colors.white, fontSize: 14),
                             decoration: _inputDecoration(
-                              hint: 'Contoh: https://example.com/audio/lagu.mp3',
-                              icon: Icons.link_rounded,
+                              hint: 'Contoh: https://www.youtube.com/watch?v=... atau link YouTube',
+                              icon: Icons.smart_display_rounded,
                             ),
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
-                                return 'URL lagu wajib diisi';
+                                return 'URL video YouTube wajib diisi';
                               }
                               return null;
                             },
