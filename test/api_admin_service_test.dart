@@ -133,7 +133,7 @@ void main() {
       expect(stats.recentUsers.length, 1);
     });
 
-    test('getStats falls back to DummyAdminService on error / offline', () async {
+    test('getStats throws Exception on server error', () async {
       final mockClient = MockClient((request) async {
         return http.Response('Internal Server Error', 500);
       });
@@ -144,11 +144,7 @@ void main() {
         baseUrl: 'http://127.0.0.1:8000/api',
       );
 
-      final stats = await service.getStats();
-      expect(stats.totalSongs, 1250);
-      expect(stats.totalUsers, 348);
-      expect(stats.recentSongs.isNotEmpty, isTrue);
-      expect(stats.recentUsers.isNotEmpty, isTrue);
+      expect(() => service.getStats(), throwsA(isA<Exception>()));
     });
   });
 }

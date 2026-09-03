@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/services/api_category_service.dart';
 import '../../../core/services/api_song_service.dart';
 import '../../../core/services/category_service.dart';
-import '../../../core/services/dummy_category_service.dart';
-import '../../../core/services/dummy_song_service.dart';
 import '../../../core/services/song_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/category_model.dart';
@@ -70,24 +68,43 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
   }
 
   Future<void> _loadData() async {
-    try {
-      final categoriesList = await _categoryService.getCategories();
-      final songsList = await _songService.getSongs();
+    setState(() => _isLoading = true);
 
-      if (mounted) {
-        setState(() {
-          _categories = categoriesList;
-          _allSongs = songsList;
-          _filterSongs();
-          _isLoading = false;
-        });
+    List<CategoryModel> categoriesList = _categories;
+    List<SongModel> songsList = _allSongs;
+
+    try {
+      final results = await Future.wait([
+        _categoryService.getCategories().catchError((e) {
+          debugPrint('Error loading categories: $e');
+          return <CategoryModel>[];
+        }),
+        _songService.getSongs().catchError((e) {
+          debugPrint('Error loading songs: $e');
+          return <SongModel>[];
+        }),
+      ]);
+
+      final fetchedCategories = results[0] as List<CategoryModel>;
+      final fetchedSongs = results[1] as List<SongModel>;
+
+      if (fetchedCategories.isNotEmpty || _categories.isEmpty) {
+        categoriesList = fetchedCategories;
       }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      if (fetchedSongs.isNotEmpty || _allSongs.isEmpty) {
+        songsList = fetchedSongs;
       }
+    } catch (e) {
+      debugPrint('Error in _loadData: $e');
+    }
+
+    if (mounted) {
+      setState(() {
+        _categories = categoriesList;
+        _allSongs = songsList;
+        _filterSongs();
+        _isLoading = false;
+      });
     }
   }
 
@@ -109,6 +126,22 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
   }
 
   Future<void> _showSongFormDialog({SongModel? song}) async {
+    // Pastikan kategori telah termuat sebelum membuka dialog form
+    if (_categories.isEmpty) {
+      try {
+        final cats = await _categoryService.getCategories();
+        if (cats.isNotEmpty && mounted) {
+          setState(() {
+            _categories = cats;
+          });
+        }
+      } catch (e) {
+        debugPrint('Could not load categories prior to dialog: $e');
+      }
+    }
+
+    if (!mounted) return;
+
     final isEditing = song != null;
     final titleController = TextEditingController(text: song?.songtitle ?? '');
     final singerController = TextEditingController(text: song?.songsinger ?? '');
@@ -116,8 +149,10 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
     final durationController = TextEditingController(text: song?.songduration ?? '');
     
     // Ensure default category is valid
-    int selectedCategory = song?.songcategory ??
-        (_categories.isNotEmpty ? _parseCategoryId(_categories.first.id) : 1);
+    int? selectedCategory = song?.songcategory;
+    if (selectedCategory == null || !_categories.any((c) => _parseCategoryId(c.id) == selectedCategory)) {
+      selectedCategory = _categories.isNotEmpty ? _parseCategoryId(_categories.first.id) : null;
+    }
     
     // Sanitize selectedNada to prevent crashes with legacy values like "C", "Am", etc.
     String? selectedNada;
@@ -258,11 +293,24 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                           ),
                           const SizedBox(height: 6),
                           DropdownButtonFormField<int>(
-                            initialValue: _categories.any((c) => _parseCategoryId(c.id) == selectedCategory)
+                            initialValue: selectedCategory != null &&
+                                    _categories.any((c) => _parseCategoryId(c.id) == selectedCategory)
                                 ? selectedCategory
-                                : (_categories.isNotEmpty ? _parseCategoryId(_categories.first.id) : 1),
+                                : (_categories.isNotEmpty
+                                    ? _parseCategoryId(_categories.first.id)
+                                    : null),
+                            isExpanded: true,
                             dropdownColor: AppColors.surfaceDark,
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: AppColors.accentCyan,
+                              size: 26,
+                            ),
                             style: const TextStyle(color: Colors.white, fontSize: 14),
+                            hint: const Text(
+                              'Pilih Kategori',
+                              style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                            ),
                             decoration: _inputDecoration(
                               hint: 'Pilih Kategori',
                               icon: Icons.category_rounded,
@@ -277,14 +325,86 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                                 ),
                               );
                             }).toList(),
-                            onChanged: (value) {
-                              if (value != null) {
-                                setDialogState(() {
-                                  selectedCategory = value;
-                                });
+                            onChanged: _categories.isNotEmpty
+                                ? (value) {
+                                    if (value != null) {
+                                      setDialogState(() {
+                                        selectedCategory = value;
+                                      });
+                                    }
+                                  }
+                                : null,
+                            validator: (value) {
+                              if (value == null && _categories.isNotEmpty) {
+                                return 'Pilih kategori lagu terlebih dahulu';
                               }
+                              return null;
                             },
                           ),
+                          if (_categories.isEmpty) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.warning.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: AppColors.warning.withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: AppColors.warning,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Expanded(
+                                    child: Text(
+                                      'Kategori belum termuat dari server.',
+                                      style: TextStyle(
+                                        color: AppColors.warning,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: () async {
+                                      try {
+                                        final cats = await _categoryService.getCategories();
+                                        if (cats.isNotEmpty && mounted) {
+                                          setState(() => _categories = cats);
+                                          setDialogState(() {
+                                            selectedCategory = _parseCategoryId(cats.first.id);
+                                          });
+                                        }
+                                      } catch (_) {}
+                                    },
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.refresh_rounded, size: 14, color: AppColors.accentCyan),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Muat Ulang',
+                                            style: TextStyle(
+                                              color: AppColors.accentCyan,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 14),
 
                           // URL Lagu / Media
@@ -487,6 +607,13 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                       ? null
                       : () async {
                           if (formKey.currentState!.validate()) {
+                            if (selectedCategory == null && _categories.isNotEmpty) {
+                              selectedCategory = _parseCategoryId(_categories.first.id);
+                            }
+                            if (selectedCategory == null) {
+                              _showSnackbar('Kategori lagu belum dipilih atau belum tersedia dari server', AppColors.error);
+                              return;
+                            }
                             setDialogState(() {
                               isSubmitting = true;
                             });
@@ -496,7 +623,7 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                                   songtitle: titleController.text.trim(),
                                   songsinger: singerController.text.trim(),
                                   songurl: urlController.text.trim(),
-                                  songcategory: selectedCategory,
+                                  songcategory: selectedCategory!,
                                   songnada: selectedNada?.trim().isNotEmpty == true ? selectedNada : null,
                                   songduration: durationController.text.trim().isNotEmpty ? durationController.text.trim() : null,
                                 );
@@ -506,7 +633,7 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                                   songtitle: titleController.text.trim(),
                                   songsinger: singerController.text.trim(),
                                   songurl: urlController.text.trim(),
-                                  songcategory: selectedCategory,
+                                  songcategory: selectedCategory!,
                                   songnada: selectedNada?.trim().isNotEmpty == true ? selectedNada : null,
                                   songduration: durationController.text.trim().isNotEmpty ? durationController.text.trim() : null,
                                 );

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/services/api_user_service.dart';
-import '../../../core/services/dummy_user_service.dart';
 import '../../../core/services/user_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/user_account_model.dart';

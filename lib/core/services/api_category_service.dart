@@ -4,23 +4,19 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../../models/category_model.dart';
 import 'category_service.dart';
-import 'dummy_category_service.dart';
 import 'storage_service.dart';
 
 class ApiCategoryService implements CategoryService {
   final http.Client _client;
   final StorageService? storageService;
   final String? _customBaseUrl;
-  final DummyCategoryService _fallbackService;
 
   ApiCategoryService({
     http.Client? client,
     this.storageService,
     String? baseUrl,
-    DummyCategoryService? fallbackService,
   })  : _client = client ?? http.Client(),
-        _customBaseUrl = baseUrl,
-        _fallbackService = fallbackService ?? DummyCategoryService();
+        _customBaseUrl = baseUrl;
 
   String get baseUrl {
     final custom = _customBaseUrl;
@@ -67,12 +63,13 @@ class ApiCategoryService implements CategoryService {
         }
         return [];
       } else {
-        // Jika server mengembalikan status error selain 200, fallback ke dummy
-        return await _fallbackService.getCategories(search: search);
+        throw Exception('Gagal memuat kategori (${response.statusCode}).');
       }
-    } catch (_) {
-      // Jika jaringan gagal / offline / widget test tanpa server, fallback ke dummy
-      return await _fallbackService.getCategories(search: search);
+    } on TimeoutException {
+      throw Exception('Waktu koneksi habis saat memuat kategori.');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Gagal menghubungi server.');
     }
   }
 
@@ -96,13 +93,13 @@ class ApiCategoryService implements CategoryService {
       } else if (response.statusCode == 404) {
         throw Exception('Kategori tidak ditemukan.');
       } else {
-        return await _fallbackService.getCategory(id);
+        throw Exception('Gagal memuat kategori (${response.statusCode}).');
       }
+    } on TimeoutException {
+      throw Exception('Waktu koneksi habis saat memuat kategori.');
     } catch (e) {
-      if (e is Exception && e.toString().contains('Kategori tidak ditemukan')) {
-        rethrow;
-      }
-      return await _fallbackService.getCategory(id);
+      if (e is Exception) rethrow;
+      throw Exception('Gagal menghubungi server.');
     }
   }
 
@@ -110,7 +107,7 @@ class ApiCategoryService implements CategoryService {
   Future<CategoryModel> createCategory(String name) async {
     final token = await _getToken();
     if (token == null || token.isEmpty) {
-      return await _fallbackService.createCategory(name);
+      throw Exception('Sesi login tidak ditemukan. Harap login terlebih dahulu.');
     }
 
     final url = Uri.parse('$baseUrl/categories');
@@ -166,7 +163,7 @@ class ApiCategoryService implements CategoryService {
   Future<CategoryModel> updateCategory(dynamic id, String newName) async {
     final token = await _getToken();
     if (token == null || token.isEmpty) {
-      return await _fallbackService.updateCategory(id, newName);
+      throw Exception('Sesi login tidak ditemukan. Harap login terlebih dahulu.');
     }
 
     final url = Uri.parse('$baseUrl/categories/$id');
@@ -224,7 +221,7 @@ class ApiCategoryService implements CategoryService {
   Future<bool> deleteCategory(dynamic id) async {
     final token = await _getToken();
     if (token == null || token.isEmpty) {
-      return await _fallbackService.deleteCategory(id);
+      throw Exception('Sesi login tidak ditemukan. Harap login terlebih dahulu.');
     }
 
     final url = Uri.parse('$baseUrl/categories/$id');

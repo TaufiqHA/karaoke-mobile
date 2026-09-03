@@ -108,7 +108,7 @@ void main() {
       expect(list.first.songtitle, 'Separuh Nafas');
     });
 
-    test('getSongs falls back to DummySongService on network failure', () async {
+    test('getSongs throws Exception on network failure', () async {
       final mockClient = MockClient((request) async {
         throw http.ClientException('Connection failed');
       });
@@ -119,8 +119,7 @@ void main() {
         baseUrl: 'http://127.0.0.1:8000/api',
       );
 
-      final list = await service.getSongs();
-      expect(list.isNotEmpty, isTrue);
+      expect(() => service.getSongs(), throwsA(isA<Exception>()));
     });
   });
 

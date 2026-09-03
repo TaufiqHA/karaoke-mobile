@@ -557,6 +557,17 @@ class _PlayerControlsState extends State<PlayerControls> {
                   size: 20,
                 ),
               ),
+            if (widget.onNext != null)
+              IconButton(
+                onPressed: hasSong ? widget.onNext : null,
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Lagu Berikutnya',
+                icon: Icon(
+                  Icons.skip_next_rounded,
+                  color: hasSong ? Colors.white : AppColors.textMuted,
+                  size: 22,
+                ),
+              ),
             if (widget.onToggleFullscreen != null)
               IconButton(
                 onPressed: widget.onToggleFullscreen,

@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../../models/song_model.dart';
-import 'dummy_song_service.dart';
 import 'song_service.dart';
 import 'storage_service.dart';
 
@@ -11,16 +10,13 @@ class ApiSongService implements SongService {
   final http.Client _client;
   final StorageService? storageService;
   final String? _customBaseUrl;
-  final DummySongService _fallbackService;
 
   ApiSongService({
     http.Client? client,
     this.storageService,
     String? baseUrl,
-    DummySongService? fallbackService,
   })  : _client = client ?? http.Client(),
-        _customBaseUrl = baseUrl,
-        _fallbackService = fallbackService ?? DummySongService();
+        _customBaseUrl = baseUrl;
 
   String get baseUrl {
     final custom = _customBaseUrl;
@@ -73,11 +69,13 @@ class ApiSongService implements SongService {
         }
         return [];
       } else {
-        return await _fallbackService.getSongs(search: search, categoryId: categoryId);
+        throw Exception('Gagal memuat data lagu (${response.statusCode}).');
       }
-    } catch (_) {
-      // Offline fallback / widget test environment
-      return await _fallbackService.getSongs(search: search, categoryId: categoryId);
+    } on TimeoutException {
+      throw Exception('Waktu koneksi habis saat memuat lagu.');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Gagal menghubungi server.');
     }
   }
 
@@ -101,13 +99,13 @@ class ApiSongService implements SongService {
       } else if (response.statusCode == 404) {
         throw Exception('Lagu tidak ditemukan.');
       } else {
-        return await _fallbackService.getSong(id);
+        throw Exception('Gagal memuat detail lagu (${response.statusCode}).');
       }
+    } on TimeoutException {
+      throw Exception('Waktu koneksi habis saat memuat detail lagu.');
     } catch (e) {
-      if (e is Exception && e.toString().contains('Lagu tidak ditemukan')) {
-        rethrow;
-      }
-      return await _fallbackService.getSong(id);
+      if (e is Exception) rethrow;
+      throw Exception('Gagal menghubungi server.');
     }
   }
 
@@ -122,14 +120,7 @@ class ApiSongService implements SongService {
   }) async {
     final token = await _getToken();
     if (token == null || token.isEmpty) {
-      return await _fallbackService.createSong(
-        songtitle: songtitle,
-        songsinger: songsinger,
-        songurl: songurl,
-        songcategory: songcategory,
-        songnada: songnada,
-        songduration: songduration,
-      );
+      throw Exception('Sesi login tidak ditemukan. Harap login terlebih dahulu.');
     }
 
     final url = Uri.parse('$baseUrl/songs');
@@ -192,7 +183,7 @@ class ApiSongService implements SongService {
   Future<SongModel> updateSong(SongModel song) async {
     final token = await _getToken();
     if (token == null || token.isEmpty) {
-      return await _fallbackService.updateSong(song);
+      throw Exception('Sesi login tidak ditemukan. Harap login terlebih dahulu.');
     }
 
     final url = Uri.parse('$baseUrl/songs/${song.songid}');
@@ -255,7 +246,7 @@ class ApiSongService implements SongService {
   Future<bool> deleteSong(int songid) async {
     final token = await _getToken();
     if (token == null || token.isEmpty) {
-      return await _fallbackService.deleteSong(songid);
+      throw Exception('Sesi login tidak ditemukan. Harap login terlebih dahulu.');
     }
 
     final url = Uri.parse('$baseUrl/songs/$songid');

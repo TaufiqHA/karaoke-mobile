@@ -249,7 +249,7 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
                 : ListView.separated(
                     shrinkWrap: true,
                     itemCount: _devices.length,
-                    separatorBuilder: (_, __) => const Divider(
+                    separatorBuilder: (_, _) => const Divider(
                       height: 1,
                       color: Colors.white10,
                     ),

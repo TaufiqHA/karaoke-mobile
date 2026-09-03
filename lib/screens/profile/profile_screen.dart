@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_auth_service.dart';
 import '../../core/services/auth_service.dart';
-import '../../core/services/dummy_user_service.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -29,7 +28,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late StorageService _storageService;
-  late UserService _userService;
   late AuthService _authService;
 
   UserModel? _currentUser;
@@ -60,7 +58,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _initServicesAndLoadUser() async {
     _storageService = widget.storageService ?? await StorageService.getInstance();
-    _userService = widget.userService ?? DummyUserService();
     _authService = widget.authService ?? ApiAuthService(storageService: _storageService);
 
     // 1. Muat data instan dari cache lokal jika ada
@@ -154,21 +151,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final token = await _storageService.getToken();
-      UserModel updatedUser;
-
-      if (token != null && token.isNotEmpty) {
-        updatedUser = await _authService.updateProfile(
-          name: _displayNameController.text.trim(),
-          username: _currentUser!.username,
-          email: _emailController.text.trim(),
-        );
-      } else {
-        updatedUser = _currentUser!.copyWith(
-          displayName: _displayNameController.text.trim(),
-          email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-        );
-        await _storageService.saveUser(updatedUser);
+      if (token == null || token.isEmpty) {
+        throw Exception('Sesi login telah berakhir. Silakan login kembali.');
       }
+
+      final updatedUser = await _authService.updateProfile(
+        name: _displayNameController.text.trim(),
+        username: _currentUser!.username,
+        email: _emailController.text.trim(),
+      );
 
       if (mounted) {
         setState(() {
@@ -198,19 +189,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final token = await _storageService.getToken();
-      if (token != null && token.isNotEmpty) {
-        await _authService.updatePassword(
-          currentPassword: oldPass,
-          newPassword: newPass,
-          newPasswordConfirmation: confirmPass,
-        );
-      } else {
-        await _userService.changePassword(
-          username: _currentUser!.username,
-          oldPassword: oldPass,
-          newPassword: newPass,
-        );
+      if (token == null || token.isEmpty) {
+        throw Exception('Sesi login telah berakhir. Silakan login kembali.');
       }
+
+      await _authService.updatePassword(
+        currentPassword: oldPass,
+        newPassword: newPass,
+        newPasswordConfirmation: confirmPass,
+      );
 
       if (mounted) {
         _oldPasswordController.clear();

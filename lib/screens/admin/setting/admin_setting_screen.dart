@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/services/api_application_service.dart';
 import '../../../core/services/application_service.dart';
-import '../../../core/services/dummy_application_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/application_model.dart';
 

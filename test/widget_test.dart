@@ -13,6 +13,13 @@ import 'package:karaoke_app/screens/home_screen.dart';
 import 'package:karaoke_app/screens/login_screen.dart';
 import 'package:karaoke_app/screens/profile/profile_screen.dart';
 import 'package:karaoke_app/screens/admin/setting/admin_setting_screen.dart';
+import 'package:karaoke_app/core/services/dummy_admin_service.dart';
+import 'package:karaoke_app/core/services/dummy_application_service.dart';
+import 'package:karaoke_app/core/services/dummy_auth_service.dart';
+import 'package:karaoke_app/core/services/dummy_category_service.dart';
+import 'package:karaoke_app/core/services/dummy_song_service.dart';
+import 'package:karaoke_app/core/services/dummy_user_service.dart';
+import 'package:karaoke_app/core/services/storage_service.dart';
 import 'package:karaoke_app/screens/splash_screen.dart';
 
 void main() {
@@ -70,9 +77,9 @@ void main() {
 
   testWidgets('Admin Home Screen renders summary of songs and users', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
-          body: AdminHomeScreen(),
+          body: AdminHomeScreen(adminService: DummyAdminService()),
         ),
       ),
     );
@@ -129,9 +136,9 @@ void main() {
 
   testWidgets('Admin Category Screen CRUD operations test', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
-          body: AdminCategoryScreen(),
+          body: AdminCategoryScreen(categoryService: DummyCategoryService()),
         ),
       ),
     );
@@ -186,9 +193,12 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
 
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
-          body: AdminSongScreen(),
+          body: AdminSongScreen(
+            songService: DummySongService(),
+            categoryService: DummyCategoryService(),
+          ),
         ),
       ),
     );
@@ -276,8 +286,8 @@ void main() {
 
   testWidgets('Admin User Screen CRUD and search/filter test', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: AdminUserScreen(),
+      MaterialApp(
+        home: AdminUserScreen(userService: DummyUserService()),
       ),
     );
     await tester.pumpAndSettle();
@@ -408,9 +418,13 @@ void main() {
       role: 'user',
     );
 
+    final storage = await StorageService.getInstance();
+    await storage.saveToken('test_token');
+    final authService = DummyAuthService(storageService: storage);
+
     await tester.pumpWidget(
-      const MaterialApp(
-        home: ProfileScreen(initialUser: testUser),
+      MaterialApp(
+        home: ProfileScreen(initialUser: testUser, authService: authService),
       ),
     );
     await tester.pumpAndSettle();
@@ -440,9 +454,13 @@ void main() {
       role: 'admin',
     );
 
+    final storage = await StorageService.getInstance();
+    await storage.saveToken('test_token');
+    final authService = DummyAuthService(storageService: storage);
+
     await tester.pumpWidget(
-      const MaterialApp(
-        home: ProfileScreen(initialUser: testUser),
+      MaterialApp(
+        home: ProfileScreen(initialUser: testUser, authService: authService),
       ),
     );
     await tester.pumpAndSettle();
@@ -483,13 +501,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Tap tombol Manajemen Profil di header
-    final profileBtn = find.byTooltip('Manajemen Profil');
-    expect(profileBtn, findsOneWidget);
-    await tester.tap(profileBtn);
+    // Tap icon profil pada header
+    await tester.tap(find.byIcon(Icons.person_rounded));
     await tester.pumpAndSettle();
 
-    // Memverifikasi ProfileScreen terbuka
+    // Verifikasi navigasi ke ProfileScreen berhasil
     expect(find.byType(ProfileScreen), findsOneWidget);
     expect(find.text('Manajemen Profil'), findsOneWidget);
   });
@@ -501,7 +517,7 @@ void main() {
 
     await tester.pumpWidget(
       const MaterialApp(
-        home: AdminMainLayout(),
+        home: AdminMainLayout(initialIndex: 0),
       ),
     );
     await tester.pumpAndSettle();
@@ -517,9 +533,9 @@ void main() {
 
   testWidgets('Admin Setting Screen renders tb_application configuration and updates values', (WidgetTester tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
-          body: AdminSettingScreen(),
+          body: AdminSettingScreen(applicationService: DummyApplicationService()),
         ),
       ),
     );

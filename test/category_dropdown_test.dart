@@ -10,7 +10,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('Tap right side of category dropdown when isExpanded is false', (WidgetTester tester) async {
+  testWidgets('Tap right side of category dropdown opens dropdown successfully and selects item', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -32,14 +32,22 @@ void main() {
     await tester.pumpAndSettle();
 
     final dropdownFinder = find.byType(DropdownButtonFormField<int>);
+    expect(dropdownFinder, findsOneWidget);
 
-    // Tap at the right side (where dropdown arrow usually is in normal textfields)
+    // Tap at the right side (where dropdown arrow is)
     final topRight = tester.getTopRight(dropdownFinder);
     await tester.tapAt(topRight.translate(-20, 25));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
 
+    // Verifikasi menu dropdown terbuka
     final itemsOpen = find.text('Dangdut & Koplo');
-    print('Items open when tapped at right side: ${itemsOpen.evaluate().length}');
+    expect(itemsOpen, findsWidgets);
+
+    // Pilih kategori 'Dangdut & Koplo'
+    await tester.tap(itemsOpen.last);
+    await tester.pumpAndSettle();
+
+    // Verifikasi kategori terpilih
+    expect(find.text('Dangdut & Koplo'), findsWidgets);
   });
 }

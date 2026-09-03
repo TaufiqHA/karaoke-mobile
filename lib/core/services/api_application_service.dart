@@ -4,23 +4,19 @@ import 'package:http/http.dart' as http;
 import '../../models/application_model.dart';
 import '../config/api_config.dart';
 import 'application_service.dart';
-import 'dummy_application_service.dart';
 import 'storage_service.dart';
 
 class ApiApplicationService implements ApplicationService {
   final http.Client _client;
   final StorageService? storageService;
   final String? _customBaseUrl;
-  final DummyApplicationService _fallbackService;
 
   ApiApplicationService({
     http.Client? client,
     this.storageService,
     String? baseUrl,
-    DummyApplicationService? fallbackService,
   })  : _client = client ?? http.Client(),
-        _customBaseUrl = baseUrl,
-        _fallbackService = fallbackService ?? DummyApplicationService();
+        _customBaseUrl = baseUrl;
 
   String get baseUrl => _customBaseUrl ?? ApiConfig.baseUrl;
 
@@ -52,9 +48,10 @@ class ApiApplicationService implements ApplicationService {
       response = await _client
           .get(url, headers: headers)
           .timeout(const Duration(seconds: 5));
-    } catch (_) {
-      // Jaringan gagal / offline / widget test tanpa server
-      return await _fallbackService.getApplicationConfig();
+    } on TimeoutException {
+      throw Exception('Waktu koneksi habis saat memuat pengaturan aplikasi.');
+    } catch (e) {
+      throw Exception('Gagal menghubungi server.');
     }
 
     if (response.statusCode == 200) {
@@ -63,13 +60,13 @@ class ApiApplicationService implements ApplicationService {
       if (rawData != null && rawData is Map<String, dynamic>) {
         return ApplicationModel.fromJson(rawData);
       }
-      return await _fallbackService.getApplicationConfig();
+      throw Exception('Format respons pengaturan tidak valid.');
     } else if (response.statusCode == 403) {
       throw Exception('Akses ditolak. Diperlukan hak akses administrator.');
     } else if (response.statusCode == 401) {
       throw Exception('Sesi login telah kedaluwarsa.');
     } else {
-      return await _fallbackService.getApplicationConfig();
+      throw Exception('Gagal memuat pengaturan aplikasi (Status: ${response.statusCode}).');
     }
   }
 
@@ -77,7 +74,7 @@ class ApiApplicationService implements ApplicationService {
   Future<ApplicationModel> updateApplicationConfig(ApplicationModel config) async {
     final token = await _getToken();
     if (token == null || token.isEmpty) {
-      return await _fallbackService.updateApplicationConfig(config);
+      throw Exception('Sesi login tidak ditemukan. Harap login terlebih dahulu.');
     }
 
     final url = Uri.parse('$baseUrl/admin/settings');
@@ -94,8 +91,10 @@ class ApiApplicationService implements ApplicationService {
       response = await _client
           .post(url, headers: headers, body: body)
           .timeout(const Duration(seconds: 5));
-    } catch (_) {
-      return await _fallbackService.updateApplicationConfig(config);
+    } on TimeoutException {
+      throw Exception('Waktu koneksi habis saat menyimpan pengaturan aplikasi.');
+    } catch (e) {
+      throw Exception('Gagal menghubungi server.');
     }
 
     final Map<String, dynamic> data = _parseResponseBody(response.body);

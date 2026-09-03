@@ -5,23 +5,20 @@ import '../../models/admin_stats_model.dart';
 import '../../models/song_model.dart';
 import '../../models/user_account_model.dart';
 import '../config/api_config.dart';
-import 'dummy_admin_service.dart';
+import 'admin_service.dart';
 import 'storage_service.dart';
 
 class ApiAdminService implements AdminService {
   final http.Client _client;
   final StorageService? storageService;
   final String? _customBaseUrl;
-  final DummyAdminService _fallbackService;
 
   ApiAdminService({
     http.Client? client,
     this.storageService,
     String? baseUrl,
-    DummyAdminService? fallbackService,
   })  : _client = client ?? http.Client(),
-        _customBaseUrl = baseUrl,
-        _fallbackService = fallbackService ?? DummyAdminService();
+        _customBaseUrl = baseUrl;
 
   String get baseUrl => _customBaseUrl ?? ApiConfig.baseUrl;
 
@@ -87,9 +84,9 @@ class ApiAdminService implements AdminService {
         }
       }
 
-      // Jika kedua request tidak mengembalikan 200, gunakan fallback
+      // Jika kedua request gagal
       if (songResp.statusCode != 200 && userResp.statusCode != 200) {
-        return await _fallbackService.getStats();
+        throw Exception('Gagal memuat statistik admin (${songResp.statusCode}, ${userResp.statusCode}).');
       }
 
       return AdminStatsModel(
@@ -98,9 +95,11 @@ class ApiAdminService implements AdminService {
         recentSongs: recentSongs,
         recentUsers: recentUsers,
       );
-    } catch (_) {
-      // Jaringan offline / timeout / test environment
-      return await _fallbackService.getStats();
+    } on TimeoutException {
+      throw Exception('Waktu koneksi habis saat memuat statistik.');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Gagal menghubungi server.');
     }
   }
 

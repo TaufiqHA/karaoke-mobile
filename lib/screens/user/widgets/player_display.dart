@@ -80,116 +80,70 @@ class PlayerDisplay extends StatelessWidget {
                 ),
               ),
 
-            // 2. Main Stage Area (Luas & Terbuka: Langsung Video YouTube)
+            // 2. Main Stage Area (Luas & Terbuka: Langsung Video YouTube Full Width)
             if (song != null) ...[
-              YoutubeVideoPlayerWidget(
-                controller: youtubeController,
-                videoId: videoId,
-                songTitle: song!.songtitle,
-                songSinger: song!.songsinger,
-                isPlaying: isPlaying,
-                onPlayTapped: onPlayPauseTapped,
-                isTestMode: isTestMode,
-              ),
-
-              if (constraints.maxWidth >= 650) ...[
-                const SizedBox(height: 10),
-
-                // Song Info: Judul & Penyanyi (Desktop only)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            song!.songtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            song!.songsinger,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.accentSky,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ] else ...[
-              // Empty State Awal (Minimalis & Elegan)
-              Container(
+              SizedBox(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.06),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: YoutubeVideoPlayerWidget(
+                    controller: youtubeController,
+                    videoId: videoId,
+                    songTitle: song!.songtitle,
+                    songSinger: song!.songsinger,
+                    isPlaying: isPlaying,
+                    onPlayTapped: onPlayPauseTapped,
+                    isTestMode: isTestMode,
                   ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.primaryElectric.withValues(alpha: 0.2),
-                        border: Border.all(
-                          color: AppColors.accentCyan.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.music_note_rounded,
-                        size: 32,
-                        color: AppColors.accentLight,
+              ),
+            ] else ...[
+              // Empty State Awal (Minimalis & Elegan Full Width)
+              SizedBox(
+                width: double.infinity,
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.06),
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Player',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    if (onOpenSearchModal != null) ...[
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: onOpenSearchModal,
-                        icon: const Icon(Icons.search_rounded, size: 18),
-                        label: const Text('Pilih Lagu'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryElectric,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: constraints.maxWidth < 650 ? 46 : 56,
+                          height: constraints.maxWidth < 650 ? 46 : 56,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.primaryElectric.withValues(alpha: 0.2),
+                            border: Border.all(
+                              color: AppColors.accentCyan.withValues(alpha: 0.3),
+                            ),
                           ),
-                          elevation: 0,
+                          child: Icon(
+                            Icons.music_note_rounded,
+                            size: constraints.maxWidth < 650 ? 24 : 30,
+                            color: AppColors.accentLight,
+                          ),
                         ),
-                      ),
-                    ],
-                  ],
+                        SizedBox(height: constraints.maxWidth < 650 ? 8 : 12),
+                        Text(
+                          'Player',
+                          style: TextStyle(
+                            fontSize: constraints.maxWidth < 650 ? 16 : 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],

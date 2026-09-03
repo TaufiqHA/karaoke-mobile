@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/song_model.dart';
 import 'song_service.dart';
 
 class DummySongService implements SongService {
-  static const String _keySongs = 'app_songs_data';
+  late final List<SongModel> _songs;
 
   final List<SongModel> _defaultSongs = const [
     SongModel(
@@ -73,60 +71,33 @@ class DummySongService implements SongService {
     ),
   ];
 
-  Future<SharedPreferences> _getPrefs() async {
-    return await SharedPreferences.getInstance();
+  DummySongService([List<SongModel>? initialSongs]) {
+    _songs = initialSongs != null ? List.from(initialSongs) : List.from(_defaultSongs);
   }
 
   @override
   Future<List<SongModel>> getSongs({String? search, int? categoryId}) async {
-    final prefs = await _getPrefs();
-    final jsonString = prefs.getString(_keySongs);
-
-    List<SongModel> songs;
-
-    if (jsonString == null || jsonString.isEmpty) {
-      await _saveAll(_defaultSongs);
-      await prefs.setBool('migrated_youtube_urls_v1', true);
-      songs = List.from(_defaultSongs);
-    } else {
-      try {
-        final List<dynamic> decoded = jsonDecode(jsonString) as List<dynamic>;
-        songs = decoded
-            .map((item) => SongModel.fromJson(item as Map<String, dynamic>))
-            .toList();
-
-        // Jalankan migrasi satu kali untuk memperbarui cache dummy legacy ke URL YouTube
-        final bool isMigrated = prefs.getBool('migrated_youtube_urls_v1') ?? false;
-        if (!isMigrated) {
-          await _saveAll(_defaultSongs);
-          await prefs.setBool('migrated_youtube_urls_v1', true);
-          songs = List.from(_defaultSongs);
-        }
-      } catch (_) {
-        songs = List.from(_defaultSongs);
-      }
-    }
+    List<SongModel> result = List.from(_songs);
 
     if (search != null && search.trim().isNotEmpty) {
       final query = search.trim().toLowerCase();
-      songs = songs.where((s) {
+      result = result.where((s) {
         return s.songtitle.toLowerCase().contains(query) ||
             s.songsinger.toLowerCase().contains(query);
       }).toList();
     }
 
     if (categoryId != null) {
-      songs = songs.where((s) => s.songcategory == categoryId).toList();
+      result = result.where((s) => s.songcategory == categoryId).toList();
     }
 
-    return songs;
+    return result;
   }
 
   @override
   Future<SongModel> getSong(int id) async {
-    final songs = await getSongs();
     try {
-      return songs.firstWhere((s) => s.songid == id);
+      return _songs.firstWhere((s) => s.songid == id);
     } catch (_) {
       throw Exception('Lagu tidak ditemukan.');
     }
@@ -141,11 +112,9 @@ class DummySongService implements SongService {
     String? songnada,
     String? songduration,
   }) async {
-    final songs = await getSongs();
-
     int nextId = 1;
-    if (songs.isNotEmpty) {
-      final maxId = songs.map((s) => s.songid).reduce((a, b) => a > b ? a : b);
+    if (_songs.isNotEmpty) {
+      final maxId = _songs.map((s) => s.songid).reduce((a, b) => a > b ? a : b);
       nextId = maxId + 1;
     }
 
@@ -159,41 +128,26 @@ class DummySongService implements SongService {
       songduration: songduration?.trim().isNotEmpty == true ? songduration!.trim() : null,
     );
 
-    songs.insert(0, newSong);
-    await _saveAll(songs);
+    _songs.insert(0, newSong);
     return newSong;
   }
 
   @override
   Future<SongModel> updateSong(SongModel song) async {
-    final songs = await getSongs();
-    final index = songs.indexWhere((s) => s.songid == song.songid);
+    final index = _songs.indexWhere((s) => s.songid == song.songid);
 
     if (index == -1) {
       throw Exception('Lagu tidak ditemukan');
     }
 
-    songs[index] = song;
-    await _saveAll(songs);
+    _songs[index] = song;
     return song;
   }
 
   @override
   Future<bool> deleteSong(int songid) async {
-    final songs = await getSongs();
-    final initialLength = songs.length;
-    songs.removeWhere((s) => s.songid == songid);
-
-    if (songs.length < initialLength) {
-      await _saveAll(songs);
-      return true;
-    }
-    return false;
-  }
-
-  Future<void> _saveAll(List<SongModel> songs) async {
-    final prefs = await _getPrefs();
-    final jsonList = songs.map((s) => s.toJson()).toList();
-    await prefs.setString(_keySongs, jsonEncode(jsonList));
+    final initialLength = _songs.length;
+    _songs.removeWhere((s) => s.songid == songid);
+    return _songs.length < initialLength;
   }
 }

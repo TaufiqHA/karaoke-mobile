@@ -1,11 +1,10 @@
 import 'dart:async';
 import '../../models/admin_stats_model.dart';
+import 'admin_service.dart';
 import 'dummy_song_service.dart';
 import 'dummy_user_service.dart';
 
-abstract class AdminService {
-  Future<AdminStatsModel> getStats();
-}
+export 'admin_service.dart';
 
 class DummyAdminService implements AdminService {
   final DummySongService _songService;

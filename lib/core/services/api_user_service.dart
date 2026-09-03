@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../../models/user_account_model.dart';
-import 'dummy_user_service.dart';
 import 'storage_service.dart';
 import 'user_service.dart';
 
@@ -11,16 +10,13 @@ class ApiUserService implements UserService {
   final http.Client _client;
   final StorageService? storageService;
   final String? _customBaseUrl;
-  final DummyUserService _fallbackService;
 
   ApiUserService({
     http.Client? client,
     this.storageService,
     String? baseUrl,
-    DummyUserService? fallbackService,
   })  : _client = client ?? http.Client(),
-        _customBaseUrl = baseUrl,
-        _fallbackService = fallbackService ?? DummyUserService();
+        _customBaseUrl = baseUrl;
 
   String get baseUrl {
     final custom = _customBaseUrl;
@@ -54,7 +50,7 @@ class ApiUserService implements UserService {
 
     final token = await _getToken();
     if (token == null || token.isEmpty) {
-      return await _fallbackService.getUsers(search: search, role: role);
+      throw Exception('Sesi login tidak ditemukan. Harap login terlebih dahulu.');
     }
 
     final headers = {
@@ -67,9 +63,10 @@ class ApiUserService implements UserService {
       response = await _client
           .get(url, headers: headers)
           .timeout(const Duration(seconds: 5));
-    } catch (_) {
-      // Offline fallback / widget test environment
-      return await _fallbackService.getUsers(search: search, role: role);
+    } on TimeoutException {
+      throw Exception('Waktu koneksi habis saat memuat pengguna.');
+    } catch (e) {
+      throw Exception('Gagal menghubungi server.');
     }
 
     if (response.statusCode == 200) {
@@ -86,7 +83,7 @@ class ApiUserService implements UserService {
     } else if (response.statusCode == 401) {
       throw Exception('Sesi login telah kedaluwarsa.');
     } else {
-      return await _fallbackService.getUsers(search: search, role: role);
+      throw Exception('Gagal memuat pengguna (Status: ${response.statusCode}).');
     }
   }
 
@@ -108,13 +105,7 @@ class ApiUserService implements UserService {
 
     final token = await _getToken();
     if (token == null || token.isEmpty) {
-      return await _fallbackService.createUser(
-        username: trimmedUsername,
-        password: trimmedPassword,
-        role: trimmedRole,
-        name: trimmedName,
-        email: trimmedEmail,
-      );
+      throw Exception('Sesi login tidak ditemukan. Harap login terlebih dahulu.');
     }
 
     final url = Uri.parse('$baseUrl/admin/users');
@@ -137,14 +128,10 @@ class ApiUserService implements UserService {
       response = await _client
           .post(url, headers: headers, body: body)
           .timeout(const Duration(seconds: 5));
-    } catch (_) {
-      return await _fallbackService.createUser(
-        username: trimmedUsername,
-        password: trimmedPassword,
-        role: trimmedRole,
-        name: trimmedName,
-        email: trimmedEmail,
-      );
+    } on TimeoutException {
+      throw Exception('Waktu koneksi habis saat menambahkan pengguna.');
+    } catch (e) {
+      throw Exception('Gagal menghubungi server.');
     }
 
     final Map<String, dynamic> data = _parseResponseBody(response.body);
@@ -167,7 +154,7 @@ class ApiUserService implements UserService {
   Future<UserAccountModel> updateUser(UserAccountModel user) async {
     final token = await _getToken();
     if (token == null || token.isEmpty) {
-      return await _fallbackService.updateUser(user);
+      throw Exception('Sesi login tidak ditemukan. Harap login terlebih dahulu.');
     }
 
     final url = Uri.parse('$baseUrl/admin/users/${user.userid}');
@@ -195,8 +182,10 @@ class ApiUserService implements UserService {
       response = await _client
           .put(url, headers: headers, body: jsonEncode(payload))
           .timeout(const Duration(seconds: 5));
-    } catch (_) {
-      return await _fallbackService.updateUser(user);
+    } on TimeoutException {
+      throw Exception('Waktu koneksi habis saat memperbarui pengguna.');
+    } catch (e) {
+      throw Exception('Gagal menghubungi server.');
     }
 
     final Map<String, dynamic> data = _parseResponseBody(response.body);
@@ -221,8 +210,7 @@ class ApiUserService implements UserService {
   Future<void> deleteUser(int userid) async {
     final token = await _getToken();
     if (token == null || token.isEmpty) {
-      await _fallbackService.deleteUser(userid);
-      return;
+      throw Exception('Sesi login tidak ditemukan. Harap login terlebih dahulu.');
     }
 
     final url = Uri.parse('$baseUrl/admin/users/$userid');
@@ -236,9 +224,10 @@ class ApiUserService implements UserService {
       response = await _client
           .delete(url, headers: headers)
           .timeout(const Duration(seconds: 5));
-    } catch (_) {
-      await _fallbackService.deleteUser(userid);
-      return;
+    } on TimeoutException {
+      throw Exception('Waktu koneksi habis saat menghapus pengguna.');
+    } catch (e) {
+      throw Exception('Gagal menghubungi server.');
     }
 
     if (response.statusCode == 200) {
@@ -261,15 +250,11 @@ class ApiUserService implements UserService {
 
   @override
   Future<bool> isUsernameExists(String username, {int? excludeUserId}) async {
-    try {
-      final users = await getUsers(search: username);
-      final normalized = username.trim().toLowerCase();
-      return users.any((u) =>
-          u.username.trim().toLowerCase() == normalized &&
-          (excludeUserId == null || u.userid != excludeUserId));
-    } catch (_) {
-      return await _fallbackService.isUsernameExists(username, excludeUserId: excludeUserId);
-    }
+    final users = await getUsers(search: username);
+    final normalized = username.trim().toLowerCase();
+    return users.any((u) =>
+        u.username.trim().toLowerCase() == normalized &&
+        (excludeUserId == null || u.userid != excludeUserId));
   }
 
   @override
@@ -278,11 +263,7 @@ class ApiUserService implements UserService {
     required String oldPassword,
     required String newPassword,
   }) async {
-    return await _fallbackService.changePassword(
-      username: username,
-      oldPassword: oldPassword,
-      newPassword: newPassword,
-    );
+    throw UnimplementedError('Gunakan ApiAuthService.updatePassword untuk mengubah kata sandi.');
   }
 
   Map<String, dynamic> _parseResponseBody(String body) {

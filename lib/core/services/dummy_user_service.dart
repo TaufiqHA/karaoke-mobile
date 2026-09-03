@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/user_account_model.dart';
 import 'user_service.dart';
 
 class DummyUserService implements UserService {
-  static const String _keyUsers = 'app_users_data';
+  late final List<UserAccountModel> _users;
 
   final List<UserAccountModel> _defaultUsers = const [
     UserAccountModel(
@@ -42,30 +40,13 @@ class DummyUserService implements UserService {
     ),
   ];
 
-  Future<SharedPreferences> _getPrefs() async {
-    return await SharedPreferences.getInstance();
+  DummyUserService([List<UserAccountModel>? initialUsers]) {
+    _users = initialUsers != null ? List.from(initialUsers) : List.from(_defaultUsers);
   }
 
   @override
   Future<List<UserAccountModel>> getUsers({String? search, String? role}) async {
-    final prefs = await _getPrefs();
-    final jsonString = prefs.getString(_keyUsers);
-
-    List<UserAccountModel> users;
-    if (jsonString == null || jsonString.isEmpty) {
-      await _saveUsersToStorage(_defaultUsers);
-      users = List.from(_defaultUsers);
-    } else {
-      try {
-        final List<dynamic> decoded = jsonDecode(jsonString);
-        users = decoded
-            .map((item) => UserAccountModel.fromJson(item as Map<String, dynamic>))
-            .toList();
-      } catch (_) {
-        await _saveUsersToStorage(_defaultUsers);
-        users = List.from(_defaultUsers);
-      }
-    }
+    List<UserAccountModel> users = List.from(_users);
 
     if (search != null && search.trim().isNotEmpty) {
       final q = search.trim().toLowerCase();
@@ -110,14 +91,13 @@ class DummyUserService implements UserService {
       throw Exception('Password tidak boleh kosong');
     }
 
-    final users = await getUsers();
     if (await isUsernameExists(trimmedUsername)) {
       throw Exception('Username "$trimmedUsername" sudah digunakan');
     }
 
     int nextId = 1;
-    if (users.isNotEmpty) {
-      final maxId = users.map((u) => u.userid).reduce((a, b) => a > b ? a : b);
+    if (_users.isNotEmpty) {
+      final maxId = _users.map((u) => u.userid).reduce((a, b) => a > b ? a : b);
       nextId = maxId + 1;
     }
 
@@ -134,8 +114,7 @@ class DummyUserService implements UserService {
       updatedAt: DateTime.now(),
     );
 
-    users.add(newUser);
-    await _saveUsersToStorage(users);
+    _users.add(newUser);
     return newUser;
   }
 
@@ -149,8 +128,7 @@ class DummyUserService implements UserService {
       throw Exception('Password tidak boleh kosong');
     }
 
-    final users = await getUsers();
-    final index = users.indexWhere((u) => u.userid == user.userid);
+    final index = _users.indexWhere((u) => u.userid == user.userid);
     if (index == -1) {
       throw Exception('Pengguna dengan ID ${user.userid} tidak ditemukan');
     }
@@ -170,16 +148,13 @@ class DummyUserService implements UserService {
       updatedAt: DateTime.now(),
     );
 
-    users[index] = updatedUser;
-    await _saveUsersToStorage(users);
+    _users[index] = updatedUser;
     return updatedUser;
   }
 
   @override
   Future<void> deleteUser(int userid) async {
-    final users = await getUsers();
-    users.removeWhere((u) => u.userid == userid);
-    await _saveUsersToStorage(users);
+    _users.removeWhere((u) => u.userid == userid);
   }
 
   @override
@@ -196,28 +171,19 @@ class DummyUserService implements UserService {
       throw Exception('Password baru minimal 6 karakter');
     }
 
-    final users = await getUsers();
-    final index = users.indexWhere(
+    final index = _users.indexWhere(
       (u) => u.username.trim().toLowerCase() == trimmedUser,
     );
 
     if (index != -1) {
-      final existingUser = users[index];
+      final existingUser = _users[index];
       if (existingUser.password != trimmedOldPass) {
         throw Exception('Password lama tidak sesuai');
       }
-      users[index] = existingUser.copyWith(password: trimmedNewPass);
-      await _saveUsersToStorage(users);
+      _users[index] = existingUser.copyWith(password: trimmedNewPass);
       return true;
     }
 
-    // Jika user dibuat secara dinamis oleh dummy auth
     return true;
-  }
-
-  Future<void> _saveUsersToStorage(List<UserAccountModel> users) async {
-    final prefs = await _getPrefs();
-    final jsonList = users.map((u) => u.toJson()).toList();
-    await prefs.setString(_keyUsers, jsonEncode(jsonList));
   }
 }

@@ -62,7 +62,7 @@ void main() {
       expect(config.isAdsBottomActive, isTrue);
     });
 
-    test('getApplicationConfig falls back when data is null', () async {
+    test('getApplicationConfig throws Exception when data is null', () async {
       final mockClient = MockClient((request) async {
         return http.Response(
           jsonEncode({'data': null}),
@@ -77,8 +77,7 @@ void main() {
         baseUrl: 'http://127.0.0.1:8000/api',
       );
 
-      final config = await service.getApplicationConfig();
-      expect(config.applicationcompany, 'PT Karaoke Musik Nusantara');
+      expect(() => service.getApplicationConfig(), throwsA(isA<Exception>()));
     });
 
     test('getApplicationConfig uses public /settings if unauthenticated', () async {
