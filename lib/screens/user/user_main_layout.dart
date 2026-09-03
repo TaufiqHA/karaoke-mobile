@@ -287,7 +287,12 @@ class _UserMainLayoutState extends State<UserMainLayout> {
       _isPlaying = true;
     });
     if (_castService.connectedDevice != null && videoId != null) {
-      _castService.castVideo(videoId);
+      _castService.castVideo(
+        videoId,
+        title: song.songtitle,
+        artist: song.songsinger,
+        thumbnailUrl: YoutubeHelper.getThumbnailUrl(videoId),
+      );
     }
     _startPlaybackTimer();
   }
@@ -308,11 +313,17 @@ class _UserMainLayoutState extends State<UserMainLayout> {
       try {
         _youtubeController?.playVideo();
       } catch (_) {}
+      if (_castService.connectedDevice != null) {
+        _castService.play();
+      }
       _startPlaybackTimer();
     } else {
       try {
         _youtubeController?.pauseVideo();
       } catch (_) {}
+      if (_castService.connectedDevice != null) {
+        _castService.pause();
+      }
       _stopPlaybackTimer();
     }
   }
@@ -325,6 +336,9 @@ class _UserMainLayoutState extends State<UserMainLayout> {
       _youtubeController?.stopVideo();
       _youtubeController?.seekTo(seconds: 0, allowSeekAhead: true);
     } catch (_) {}
+    if (_castService.connectedDevice != null) {
+      _castService.pause();
+    }
     setState(() {
       _isPlaying = false;
       _currentPosition = Duration.zero;
@@ -351,6 +365,9 @@ class _UserMainLayoutState extends State<UserMainLayout> {
       try {
         _youtubeController?.seekTo(seconds: 0, allowSeekAhead: true);
       } catch (_) {}
+      if (_castService.connectedDevice != null) {
+        _castService.seek(Duration.zero);
+      }
       setState(() {
         _currentPosition = Duration.zero;
       });
@@ -362,6 +379,9 @@ class _UserMainLayoutState extends State<UserMainLayout> {
         try {
           _youtubeController?.seekTo(seconds: 0, allowSeekAhead: true);
         } catch (_) {}
+        if (_castService.connectedDevice != null) {
+          _castService.seek(Duration.zero);
+        }
         setState(() {
           _currentPosition = Duration.zero;
         });
@@ -377,6 +397,9 @@ class _UserMainLayoutState extends State<UserMainLayout> {
         allowSeekAhead: true,
       );
     } catch (_) {}
+    if (_castService.connectedDevice != null) {
+      _castService.seek(position);
+    }
     setState(() {
       _currentPosition = position;
     });
@@ -535,6 +558,9 @@ class _UserMainLayoutState extends State<UserMainLayout> {
       context,
       castService: _castService,
       currentVideoId: videoId,
+      songTitle: _currentSong?.songtitle,
+      songSinger: _currentSong?.songsinger,
+      songThumbnail: videoId != null ? YoutubeHelper.getThumbnailUrl(videoId) : null,
       onDeviceChanged: () {
         if (mounted) setState(() {});
       },
@@ -638,6 +664,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
     final username = _currentUser?.username ?? 'user';
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -650,167 +677,159 @@ class _UserMainLayoutState extends State<UserMainLayout> {
               // 1. Header Bar (Minimalis & Tanpa Subteks)
               _buildHeader(displayName, username),
 
-              // 2. Main Karaoke Screen Content (Diisolasi dengan ClipRect & Overlay agar tidak menembus Headbar)
+              // 2. Main Karaoke Screen Content
               Expanded(
-                child: ClipRect(
-                  child: Overlay(
-                    initialEntries: [
-                      OverlayEntry(
-                        builder: (context) => LayoutBuilder(
-                          builder: (context, constraints) {
-                            final isDesktop = constraints.maxWidth >= 850;
-                            final isHeightConstrained = constraints.maxHeight < 620;
-                            final contentMaxWidth = isDesktop ? 500.0 : double.infinity;
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth >= 850;
+                    final isHeightConstrained = MediaQuery.of(context).size.height < 620;
+                    final contentMaxWidth = isDesktop ? 500.0 : double.infinity;
 
-                            if (isHeightConstrained) {
-                              return SingleChildScrollView(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: isDesktop ? 40 : 14,
-                                  vertical: isDesktop ? 12 : 6,
+                    if (isHeightConstrained) {
+                      return SingleChildScrollView(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isDesktop ? 40 : 14,
+                          vertical: isDesktop ? 12 : 6,
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Player Cinema Stage (Full Width)
+                                PlayerDisplay(
+                                  song: _currentSong,
+                                  isPlaying: _isPlaying,
+                                  currentPosition: _currentPosition,
+                                  totalDuration: _totalDuration,
+                                  queueCount: _queue.length,
+                                  isFullscreen: _isFullscreen,
+                                  youtubeController: _youtubeController,
+                                  isTestMode: widget.isTestMode,
+                                  onPlayPauseTapped: _togglePlayPause,
+                                  onOpenSearchModal: () => _openSongSearchModal(context),
                                 ),
-                                child: Center(
-                                  child: ConstrainedBox(
-                                    constraints: BoxConstraints(maxWidth: contentMaxWidth),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        // Player Cinema Stage (Full Width)
-                                        PlayerDisplay(
-                                          song: _currentSong,
-                                          isPlaying: _isPlaying,
-                                          currentPosition: _currentPosition,
-                                          totalDuration: _totalDuration,
-                                          queueCount: _queue.length,
-                                          isFullscreen: _isFullscreen,
-                                          youtubeController: _youtubeController,
-                                          isTestMode: widget.isTestMode,
-                                          onPlayPauseTapped: _togglePlayPause,
-                                          onOpenSearchModal: () => _openSongSearchModal(context),
-                                        ),
-                                        const SizedBox(height: 8),
+                                const SizedBox(height: 8),
 
-                                        // Studio Playback Controls
-                                        PlayerControls(
-                                          song: _currentSong,
-                                          isPlaying: _isPlaying,
-                                          hasSong: _currentSong != null,
-                                          currentPosition: _currentPosition,
-                                          totalDuration: _totalDuration,
-                                          onSeek: _seek,
-                                          onTogglePlayPause: _togglePlayPause,
-                                          onStop: _stopSong,
-                                          onNext: _nextSong,
-                                          onPrevious: _previousSong,
-                                          volume: _volume,
-                                          isMuted: _isMuted,
-                                          isFullscreen: _isFullscreen,
-                                          onToggleFullscreen: _toggleFullscreen,
-                                          onVolumeChanged: _onVolumeChanged,
-                                          onToggleMute: _toggleMute,
-                                          onCastTapped: () => _openCastModal(context),
-                                          isCasting: _castService.connectedDevice != null,
-                                        ),
-                                        const SizedBox(height: 10),
+                                // Studio Playback Controls
+                                PlayerControls(
+                                  song: _currentSong,
+                                  isPlaying: _isPlaying,
+                                  hasSong: _currentSong != null,
+                                  currentPosition: _currentPosition,
+                                  totalDuration: _totalDuration,
+                                  onSeek: _seek,
+                                  onTogglePlayPause: _togglePlayPause,
+                                  onStop: _stopSong,
+                                  onNext: _nextSong,
+                                  onPrevious: _previousSong,
+                                  volume: _volume,
+                                  isMuted: _isMuted,
+                                  isFullscreen: _isFullscreen,
+                                  onToggleFullscreen: _toggleFullscreen,
+                                  onVolumeChanged: _onVolumeChanged,
+                                  onToggleMute: _toggleMute,
+                                  onCastTapped: () => _openCastModal(context),
+                                  isCasting: _castService.connectedDevice != null,
+                                ),
+                                const SizedBox(height: 10),
 
-                                        // Cari Lagu & Playlist Section
-                                        SizedBox(
-                                          height: 480,
-                                          child: SongCatalogPlaylistSection(
-                                            songs: _allSongs,
-                                            categories: _categories,
-                                            queue: _queue,
-                                            currentPlayingSong: _currentSong,
-                                            isLoading: _isLoading,
-                                            onPlaySong: _playSong,
-                                            onAddToQueue: _addToQueue,
-                                            onRemoveFromQueue: _removeFromQueue,
-                                            onReorderQueue: _reorderQueue,
-                                            onClearQueue: _clearQueue,
-                                            onRefresh: _loadData,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                // Cari Lagu & Playlist Section
+                                SizedBox(
+                                  height: 480,
+                                  child: SongCatalogPlaylistSection(
+                                    songs: _allSongs,
+                                    categories: _categories,
+                                    queue: _queue,
+                                    currentPlayingSong: _currentSong,
+                                    isLoading: _isLoading,
+                                    onPlaySong: _playSong,
+                                    onAddToQueue: _addToQueue,
+                                    onRemoveFromQueue: _removeFromQueue,
+                                    onReorderQueue: _reorderQueue,
+                                    onClearQueue: _clearQueue,
+                                    onRefresh: _loadData,
                                   ),
                                 ),
-                              );
-                            }
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
 
-                            return Center(
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(maxWidth: contentMaxWidth),
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isDesktop ? 40 : 14,
-                                    vertical: isDesktop ? 12 : 6,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      // Player Cinema Stage (Full Width, Fixed)
-                                      PlayerDisplay(
-                                        song: _currentSong,
-                                        isPlaying: _isPlaying,
-                                        currentPosition: _currentPosition,
-                                        totalDuration: _totalDuration,
-                                        queueCount: _queue.length,
-                                        isFullscreen: _isFullscreen,
-                                        youtubeController: _youtubeController,
-                                        isTestMode: widget.isTestMode,
-                                        onPlayPauseTapped: _togglePlayPause,
-                                        onOpenSearchModal: () => _openSongSearchModal(context),
-                                      ),
-                                      const SizedBox(height: 8),
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isDesktop ? 40 : 14,
+                            vertical: isDesktop ? 12 : 6,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // Player Cinema Stage (Full Width, Fixed)
+                              PlayerDisplay(
+                                song: _currentSong,
+                                isPlaying: _isPlaying,
+                                currentPosition: _currentPosition,
+                                totalDuration: _totalDuration,
+                                queueCount: _queue.length,
+                                isFullscreen: _isFullscreen,
+                                youtubeController: _youtubeController,
+                                isTestMode: widget.isTestMode,
+                                onPlayPauseTapped: _togglePlayPause,
+                                onOpenSearchModal: () => _openSongSearchModal(context),
+                              ),
+                              const SizedBox(height: 8),
 
-                                      // Studio Playback Controls (Fixed)
-                                      PlayerControls(
-                                        song: _currentSong,
-                                        isPlaying: _isPlaying,
-                                        hasSong: _currentSong != null,
-                                        currentPosition: _currentPosition,
-                                        totalDuration: _totalDuration,
-                                        onSeek: _seek,
-                                        onTogglePlayPause: _togglePlayPause,
-                                        onStop: _stopSong,
-                                        onNext: _nextSong,
-                                        onPrevious: _previousSong,
-                                        volume: _volume,
-                                        isMuted: _isMuted,
-                                        isFullscreen: _isFullscreen,
-                                        onToggleFullscreen: _toggleFullscreen,
-                                        onVolumeChanged: _onVolumeChanged,
-                                        onToggleMute: _toggleMute,
-                                        onCastTapped: () => _openCastModal(context),
-                                        isCasting: _castService.connectedDevice != null,
-                                      ),
-                                      const SizedBox(height: 10),
+                              // Studio Playback Controls (Fixed)
+                              PlayerControls(
+                                song: _currentSong,
+                                isPlaying: _isPlaying,
+                                hasSong: _currentSong != null,
+                                currentPosition: _currentPosition,
+                                totalDuration: _totalDuration,
+                                onSeek: _seek,
+                                onTogglePlayPause: _togglePlayPause,
+                                onStop: _stopSong,
+                                onNext: _nextSong,
+                                onPrevious: _previousSong,
+                                volume: _volume,
+                                isMuted: _isMuted,
+                                isFullscreen: _isFullscreen,
+                                onToggleFullscreen: _toggleFullscreen,
+                                onVolumeChanged: _onVolumeChanged,
+                                onToggleMute: _toggleMute,
+                                onCastTapped: () => _openCastModal(context),
+                                isCasting: _castService.connectedDevice != null,
+                              ),
+                              const SizedBox(height: 10),
 
-                                      // Cari Lagu & Playlist Section (Hanya bagian ini yang scrollable mandiri)
-                                      Expanded(
-                                        child: SongCatalogPlaylistSection(
-                                          songs: _allSongs,
-                                          categories: _categories,
-                                          queue: _queue,
-                                          currentPlayingSong: _currentSong,
-                                          isLoading: _isLoading,
-                                          onPlaySong: _playSong,
-                                          onAddToQueue: _addToQueue,
-                                          onRemoveFromQueue: _removeFromQueue,
-                                          onReorderQueue: _reorderQueue,
-                                          onClearQueue: _clearQueue,
-                                          onRefresh: _loadData,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                              // Cari Lagu & Playlist Section (Hanya bagian ini yang scrollable mandiri)
+                              Expanded(
+                                child: SongCatalogPlaylistSection(
+                                  songs: _allSongs,
+                                  categories: _categories,
+                                  queue: _queue,
+                                  currentPlayingSong: _currentSong,
+                                  isLoading: _isLoading,
+                                  onPlaySong: _playSong,
+                                  onAddToQueue: _addToQueue,
+                                  onRemoveFromQueue: _removeFromQueue,
+                                  onReorderQueue: _reorderQueue,
+                                  onClearQueue: _clearQueue,
+                                  onRefresh: _loadData,
                                 ),
                               ),
-                            );
-                          },
+                            ],
+                          ),
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
             ],

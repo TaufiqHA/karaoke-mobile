@@ -82,8 +82,27 @@ void main() {
       expect(await service.castVideo('dQw4w9WgXcQ'), isFalse);
 
       await service.connectWithTvCode('999');
-      expect(await service.castVideo('dQw4w9WgXcQ'), isTrue);
+      expect(
+        await service.castVideo(
+          'dQw4w9WgXcQ',
+          title: 'Never Gonna Give You Up',
+          artist: 'Rick Astley',
+        ),
+        isTrue,
+      );
       expect(await service.castVideo(''), isFalse);
+    });
+
+    test('getDirectStreamUrl returns test URL in test mode', () async {
+      final url = await service.getDirectStreamUrl('dQw4w9WgXcQ');
+      expect(url, contains('dQw4w9WgXcQ.mp4'));
+    });
+
+    test('play, pause, and seek execute cleanly in test mode', () async {
+      await service.play();
+      await service.pause();
+      await service.seek(const Duration(seconds: 30));
+      expect(service.isTestMode, isTrue);
     });
   });
 }

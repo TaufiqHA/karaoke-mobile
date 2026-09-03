@@ -400,33 +400,6 @@ class _SongSearchPanelState extends State<SongSearchPanel> {
                             ),
                             child: Row(
                               children: [
-                                // Song Music Icon
-                                Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    gradient: AppColors.cardGradient,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: isCurrentlyPlaying
-                                          ? AppColors.accentCyan
-                                          : AppColors.cardGlassBorder,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Icon(
-                                      isCurrentlyPlaying
-                                          ? Icons.graphic_eq_rounded
-                                          : Icons.music_note_rounded,
-                                      color: isCurrentlyPlaying
-                                          ? AppColors.accentNeon
-                                          : AppColors.accentSky,
-                                      size: 20,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-
                                 // Title & Details
                                 Expanded(
                                   child: Column(

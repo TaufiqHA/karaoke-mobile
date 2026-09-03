@@ -41,7 +41,7 @@ class _SongCatalogPlaylistSectionState extends State<SongCatalogPlaylistSection>
   String? _selectedJudul;
   String? _selectedPencipta;
   String? _selectedNada;
-  bool _isFilterExpanded = true;
+  bool _isFilterExpanded = false;
 
   bool get _hasActiveFilters =>
       _selectedJudul != null || _selectedPencipta != null || _selectedNada != null;
@@ -52,14 +52,6 @@ class _SongCatalogPlaylistSectionState extends State<SongCatalogPlaylistSection>
     if (_selectedPencipta != null) count++;
     if (_selectedNada != null) count++;
     return count;
-  }
-
-  void _resetFilters() {
-    setState(() {
-      _selectedJudul = null;
-      _selectedPencipta = null;
-      _selectedNada = null;
-    });
   }
 
   @override
@@ -596,9 +588,19 @@ class _SongCatalogPlaylistSectionState extends State<SongCatalogPlaylistSection>
   }) {
     return InkWell(
       borderRadius: BorderRadius.circular(6),
-      onTap: () => widget.onPlaySong(song),
+      onTap: () {
+        widget.onAddToQueue(song);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('"${song.songtitle}" ditambahkan ke playlist'),
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.primaryElectric,
+          ),
+        );
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(6),
@@ -608,99 +610,81 @@ class _SongCatalogPlaylistSectionState extends State<SongCatalogPlaylistSection>
           ),
         ),
         child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Ikon Musik
-          Container(
-            width: 26,
-            height: 26,
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
-              borderRadius: BorderRadius.circular(5),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.music_note_rounded,
-                color: Color(0xFF5BA4E5),
-                size: 16,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Info Lagu
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    song.songtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    song.songsinger,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: Color(0xFF8EA9C7),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  // Badges Wrap (responsif tanpa overflow)
+                  Wrap(
+                    spacing: 3,
+                    runSpacing: 2,
+                    children: [
+                      _buildBadge(categoryName, const Color(0xFF334155), const Color(0xFF94A3B8)),
+                      if (song.songnada != null && song.songnada!.isNotEmpty)
+                        _buildBadge(
+                          song.songnada!,
+                          const Color(0xFF0C4A6E),
+                          const Color(0xFF38BDF8),
+                        ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(width: 6),
 
-          // Info Lagu
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  song.songtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+            // Tombol Tambah ke Playlist
+            IconButton(
+              onPressed: () {
+                widget.onAddToQueue(song);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('"${song.songtitle}" ditambahkan ke playlist'),
+                    duration: const Duration(seconds: 1),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: AppColors.primaryElectric,
                   ),
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  song.songsinger,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: Color(0xFF8EA9C7),
-                  ),
-                ),
-                const SizedBox(height: 3),
-                // Badges Wrap (responsif tanpa overflow)
-                Wrap(
-                  spacing: 3,
-                  runSpacing: 2,
-                  children: [
-                    _buildBadge(categoryName, const Color(0xFF334155), const Color(0xFF94A3B8)),
-                    if (song.songnada != null && song.songnada!.isNotEmpty)
-                      _buildBadge(
-                        song.songnada!,
-                        const Color(0xFF0C4A6E),
-                        const Color(0xFF38BDF8),
-                      ),
-                  ],
-                ),
-              ],
+                );
+              },
+              tooltip: 'Tambah ke Playlist',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(
+                Icons.playlist_add_rounded,
+                color: Color(0xFF85B6DF),
+                size: 20,
+              ),
             ),
-          ),
-
-          // Tombol Tambah ke Playlist
-          IconButton(
-            onPressed: () {
-              widget.onAddToQueue(song);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('"${song.songtitle}" ditambahkan ke playlist'),
-                  duration: const Duration(seconds: 1),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.primaryElectric,
-                ),
-              );
-            },
-            tooltip: 'Tambah ke Playlist',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(
-              Icons.playlist_add_rounded,
-              color: Color(0xFF85B6DF),
-              size: 20,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   /// Kartu Lagu di Kolom Playlist (Kanan) - Desain Menurun (Vertical Stacked)
   Widget _buildPlaylistCard({
@@ -721,43 +705,22 @@ class _SongCatalogPlaylistSectionState extends State<SongCatalogPlaylistSection>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 1. Header Baris Atas: Ikon Drag/Musik + Judul Lagu & Penyanyi + Tombol Hapus (Trash)
+          // 1. Header Baris Atas: Ikon Drag + Judul Lagu & Penyanyi + Tombol Hapus (Trash)
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Reorder Handle & Music Icon
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ReorderableDragStartListener(
-                    index: index,
-                    child: const Padding(
-                      padding: EdgeInsets.only(right: 4.0, top: 1.0),
-                      child: Icon(
-                        Icons.drag_indicator_rounded,
-                        color: Colors.white70,
-                        size: 16,
-                      ),
-                    ),
+              // Reorder Drag Handle
+              ReorderableDragStartListener(
+                index: index,
+                child: const Padding(
+                  padding: EdgeInsets.only(right: 6.0, top: 1.0),
+                  child: Icon(
+                    Icons.drag_indicator_rounded,
+                    color: Colors.white70,
+                    size: 16,
                   ),
-                  Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F172A),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.music_note_rounded,
-                        color: Color(0xFF5BA4E5),
-                        size: 13,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-              const SizedBox(width: 6),
 
               // Judul Lagu & Penyanyi
               Expanded(

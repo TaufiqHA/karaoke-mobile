@@ -7,12 +7,18 @@ import '../../../services/cast/smart_tv_cast_service.dart';
 class CastDeviceModal extends StatefulWidget {
   final SmartTvCastService castService;
   final String? currentVideoId;
+  final String? songTitle;
+  final String? songSinger;
+  final String? songThumbnail;
   final VoidCallback? onDeviceChanged;
 
   const CastDeviceModal({
     super.key,
     required this.castService,
     this.currentVideoId,
+    this.songTitle,
+    this.songSinger,
+    this.songThumbnail,
     this.onDeviceChanged,
   });
 
@@ -20,6 +26,9 @@ class CastDeviceModal extends StatefulWidget {
     BuildContext context, {
     required SmartTvCastService castService,
     String? currentVideoId,
+    String? songTitle,
+    String? songSinger,
+    String? songThumbnail,
     VoidCallback? onDeviceChanged,
   }) {
     return showModalBottomSheet(
@@ -29,6 +38,9 @@ class CastDeviceModal extends StatefulWidget {
       builder: (context) => CastDeviceModal(
         castService: castService,
         currentVideoId: currentVideoId,
+        songTitle: songTitle,
+        songSinger: songSinger,
+        songThumbnail: songThumbnail,
         onDeviceChanged: onDeviceChanged,
       ),
     );
@@ -72,7 +84,12 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
   Future<void> _connect(CastDevice device) async {
     await widget.castService.connect(device);
     if (widget.currentVideoId != null) {
-      await widget.castService.castVideo(widget.currentVideoId!);
+      await widget.castService.castVideo(
+        widget.currentVideoId!,
+        title: widget.songTitle,
+        artist: widget.songSinger,
+        thumbnailUrl: widget.songThumbnail,
+      );
     }
     widget.onDeviceChanged?.call();
     if (mounted) {
@@ -94,7 +111,12 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
 
     await widget.castService.connectWithTvCode(code);
     if (widget.currentVideoId != null) {
-      await widget.castService.castVideo(widget.currentVideoId!);
+      await widget.castService.castVideo(
+        widget.currentVideoId!,
+        title: widget.songTitle,
+        artist: widget.songSinger,
+        thumbnailUrl: widget.songThumbnail,
+      );
     }
     widget.onDeviceChanged?.call();
     if (mounted) {

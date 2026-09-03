@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 
 /// Konfigurasi terpusat untuk Base URL API backend.
@@ -6,7 +7,7 @@ import 'package:flutter/foundation.dart';
 class ApiConfig {
   /// Host/IP default untuk backend (misal '127.0.0.1', '10.0.2.2', atau IP LAN seperti '192.168.1.50')
   static const String defaultHost = '103.30.146.68';
-  //static const String defaultHost = '10.89.124.207';
+  //static const String defaultHost = '192.168.1.126';
 
   /// Port default untuk Android
   static const String androidPort = '8001';

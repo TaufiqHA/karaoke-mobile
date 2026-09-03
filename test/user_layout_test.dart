@@ -12,7 +12,6 @@ import 'package:karaoke_app/screens/user/user_main_layout.dart';
 import 'package:karaoke_app/screens/user/widgets/player_controls.dart';
 import 'package:karaoke_app/screens/user/widgets/player_display.dart';
 import 'package:karaoke_app/screens/user/widgets/song_catalog_playlist_section.dart';
-import 'package:karaoke_app/screens/user/widgets/song_search_panel.dart';
 import 'package:karaoke_app/screens/user/widgets/youtube_video_player.dart';
 import 'package:karaoke_app/services/cast/smart_tv_cast_service.dart';
 
@@ -94,17 +93,22 @@ void main() {
     expect(find.text('Cari lagu...'), findsOneWidget);
     expect(find.text('hasil pencarian'), findsOneWidget);
     expect(find.text('playlist'), findsOneWidget);
-    expect(find.text('judul lagu'), findsOneWidget);
-    expect(find.text('pencipta'), findsOneWidget);
-    expect(find.text('nada'), findsOneWidget);
+    expect(find.text('Filter Lagu'), findsOneWidget);
+    expect(find.text('judul lagu'), findsNothing);
+    expect(find.text('pencipta'), findsNothing);
+    expect(find.text('nada'), findsNothing);
 
     // 4. Verifikasi Status Awal Player Kosong
     expect(find.text('Player'), findsWidgets);
     expect(find.text('STANDBY'), findsNothing);
     expect(find.byType(YoutubeVideoPlayerWidget), findsNothing);
 
-    // 5. Pilih lagu dari hasil pencarian untuk diputar
+    // 5. Pilih lagu dari hasil pencarian (menambahkan ke playlist) lalu tekan tombol Putar di playlist
     await tester.tap(find.textContaining('Sial').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Playlist masih kosong'), findsNothing);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Putar'));
     await tester.pumpAndSettle();
 
     // 6. Verifikasi Lagu dan Video YouTube muncul setelah dipilih
@@ -143,8 +147,11 @@ void main() {
     expect(find.byWidgetPredicate((w) => w is Text && w.data == 'Rungkad'), findsOneWidget);
     expect(find.text('Kemesraan'), findsNothing);
 
-    // Klik pada lagu 'Rungkad' untuk memutar
+    // Klik pada lagu 'Rungkad' untuk memasukkan ke playlist lalu putar
     await tester.tap(find.byWidgetPredicate((w) => w is Text && w.data == 'Rungkad'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Putar'));
     await tester.pumpAndSettle();
 
     // Verifikasi lagu yang diputar di Player berubah menjadi 'Rungkad'
@@ -155,6 +162,9 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.textContaining('Sial').first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Putar'));
     await tester.pumpAndSettle();
 
     // Verifikasi lagu baru berikutnya berhasil ter-load di player
@@ -217,8 +227,11 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Putar lagu pertama dari katalog
+    // Tambah lagu ke playlist dan putar
     await tester.tap(find.textContaining('Sial').first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Putar'));
     await tester.pumpAndSettle();
 
     // Tombol Berhenti (Stop)
@@ -275,8 +288,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Putar lagu dari katalog
+    // Masukkan lagu ke playlist dan putar
     await tester.tap(find.textContaining('Sial').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Putar'));
     await tester.pumpAndSettle();
 
     // Video player langsung aktif di layar panggung tanpa tombol visualizer
@@ -468,29 +483,30 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // 1. Kondisi awal: Filter Lagu terbuka (expanded)
-    expect(find.text('Filter Lagu'), findsOneWidget);
-    expect(find.text('judul lagu'), findsOneWidget);
-    expect(find.text('pencipta'), findsOneWidget);
-    expect(find.text('nada'), findsOneWidget);
-
-    // 2. Ketuk header 'Filter Lagu' untuk collapse
-    await tester.tap(find.text('Filter Lagu'));
-    await tester.pumpAndSettle();
-
-    // Dropdown tidak lagi tampil untuk menghemat ruang
+    // 1. Kondisi awal: Filter Lagu tertutup secara default (collapsed)
     expect(find.text('Filter Lagu'), findsOneWidget);
     expect(find.text('judul lagu'), findsNothing);
     expect(find.text('pencipta'), findsNothing);
     expect(find.text('nada'), findsNothing);
 
-    // 3. Ketuk header 'Filter Lagu' lagi untuk expand kembali
+    // 2. Ketuk header 'Filter Lagu' untuk expand
     await tester.tap(find.text('Filter Lagu'));
     await tester.pumpAndSettle();
 
-    // Dropdown kembali tampil
+    // Dropdown tampil setelah dibuka
+    expect(find.text('Filter Lagu'), findsOneWidget);
     expect(find.text('judul lagu'), findsOneWidget);
     expect(find.text('pencipta'), findsOneWidget);
     expect(find.text('nada'), findsOneWidget);
+
+    // 3. Ketuk header 'Filter Lagu' lagi untuk collapse kembali
+    await tester.tap(find.text('Filter Lagu'));
+    await tester.pumpAndSettle();
+
+    // Dropdown kembali tertutup
+    expect(find.text('Filter Lagu'), findsOneWidget);
+    expect(find.text('judul lagu'), findsNothing);
+    expect(find.text('pencipta'), findsNothing);
+    expect(find.text('nada'), findsNothing);
   });
 }
