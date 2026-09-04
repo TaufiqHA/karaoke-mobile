@@ -681,12 +681,14 @@ class _UserMainLayoutState extends State<UserMainLayout> {
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final isTablet = constraints.maxWidth >= 768;
+                    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape ||
+                        constraints.maxWidth > constraints.maxHeight;
+                    final isTabletLandscape = constraints.maxWidth >= 768 && isLandscape;
 
-                    // ================= 1. TABLET LAYOUT (>= 768px) =================
+                    // ================= 1. TABLET LANDSCAPE LAYOUT (>= 768px & Landscape) =================
                     // Kolom Kiri (Besar): Player Display & Controls
                     // Kolom Kanan (Bertingkat): Cari Lagu (Atas) & Playlist (Bawah)
-                    if (isTablet) {
+                    if (isTabletLandscape) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                         child: Row(

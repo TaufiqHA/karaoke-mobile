@@ -619,4 +619,77 @@ void main() {
     // 3. Verifikasi Posisi Horizontal pada bagian bawah: Cari lagu di kiri, Playlist di kanan
     expect(searchCenter.dx, lessThan(playlistCenter.dx));
   });
+
+  testWidgets('UserMainLayout tablet in portrait mode falls back to smartphone layout', (WidgetTester tester) async {
+    // iPad / Tablet ukuran lebar 768x1024 atau 800x1280 dalam posisi Portrait
+    tester.view.physicalSize = const Size(768, 1024);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: UserMainLayout(
+          songService: DummySongService(),
+          categoryService: DummyCategoryService(),
+          isTestMode: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Pada tablet portrait, SongCatalogPlaylistSection harus menggunakan axis: Axis.horizontal (tampilan smartphone)
+    final catalogFinder = find.byType(SongCatalogPlaylistSection);
+    expect(catalogFinder, findsOneWidget);
+    final catalogWidget = tester.widget<SongCatalogPlaylistSection>(catalogFinder);
+    expect(catalogWidget.axis, Axis.horizontal);
+
+    // 2. Verifikasi susunan vertikal: Player di atas, lalu Search & Playlist di bawahnya
+    final playerCenter = tester.getCenter(find.byType(PlayerDisplay));
+    final searchCenter = tester.getCenter(find.text('hasil pencarian'));
+    final playlistCenter = tester.getCenter(find.text('playlist'));
+
+    expect(playerCenter.dy, lessThan(searchCenter.dy));
+    expect(playerCenter.dy, lessThan(playlistCenter.dy));
+
+    // 3. Verifikasi Search di kiri dan Playlist di kanan pada bagian bawah
+    expect(searchCenter.dx, lessThan(playlistCenter.dx));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('UserMainLayout transitions smoothly between tablet landscape and portrait', (WidgetTester tester) async {
+    // 1. Mulai dalam mode Tablet Landscape (1024x768)
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: UserMainLayout(
+          songService: DummySongService(),
+          categoryService: DummyCategoryService(),
+          isTestMode: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    var catalogFinder = find.byType(SongCatalogPlaylistSection);
+    expect(tester.widget<SongCatalogPlaylistSection>(catalogFinder).axis, Axis.vertical);
+
+    // 2. Putar ke Tablet Portrait (768x1024)
+    tester.view.physicalSize = const Size(768, 1024);
+    await tester.pumpAndSettle();
+
+    catalogFinder = find.byType(SongCatalogPlaylistSection);
+    expect(tester.widget<SongCatalogPlaylistSection>(catalogFinder).axis, Axis.horizontal);
+
+    // 3. Putar kembali ke Tablet Landscape (1024x768)
+    tester.view.physicalSize = const Size(1024, 768);
+    await tester.pumpAndSettle();
+
+    catalogFinder = find.byType(SongCatalogPlaylistSection);
+    expect(tester.widget<SongCatalogPlaylistSection>(catalogFinder).axis, Axis.vertical);
+    expect(tester.takeException(), isNull);
+  });
 }
+
