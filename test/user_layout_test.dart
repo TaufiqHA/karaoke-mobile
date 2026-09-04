@@ -509,4 +509,105 @@ void main() {
     expect(find.text('pencipta'), findsNothing);
     expect(find.text('nada'), findsNothing);
   });
+
+  testWidgets('UserMainLayout tablet mode: player on left, search top-right, playlist bottom-right', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: UserMainLayout(
+          songService: DummySongService(),
+          categoryService: DummyCategoryService(),
+          isTestMode: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Verifikasi SongCatalogPlaylistSection menggunakan axis: Axis.vertical pada tablet
+    final catalogFinder = find.byType(SongCatalogPlaylistSection);
+    expect(catalogFinder, findsOneWidget);
+    final catalogWidget = tester.widget<SongCatalogPlaylistSection>(catalogFinder);
+    expect(catalogWidget.axis, Axis.vertical);
+
+    // 2. Verifikasi Posisi Horizontal: Player berada di kiri, Search & Playlist di kanan
+    final playerCenter = tester.getCenter(find.byType(PlayerDisplay));
+    final searchCenter = tester.getCenter(find.text('hasil pencarian'));
+    final playlistCenter = tester.getCenter(find.text('playlist'));
+
+    expect(playerCenter.dx, lessThan(searchCenter.dx));
+    expect(playerCenter.dx, lessThan(playlistCenter.dx));
+
+    // 3. Verifikasi Posisi Vertikal pada kolom kanan: Cari lagu di atas, Playlist di bawah
+    expect(searchCenter.dy, lessThan(playlistCenter.dy));
+
+    // 4. Verifikasi tidak ada error overflow pada mode tablet (PlayerControls bebas overflow)
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('UserMainLayout tablet and desktop resolutions overflow-free verification', (WidgetTester tester) async {
+    const resolutions = [
+      Size(800, 600),
+      Size(1024, 768),
+      Size(1280, 800),
+      Size(1366, 768),
+      Size(1920, 1080),
+    ];
+
+    for (final res in resolutions) {
+      tester.view.physicalSize = res;
+      tester.view.devicePixelRatio = 1.0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: UserMainLayout(
+            songService: DummySongService(),
+            categoryService: DummyCategoryService(),
+            isTestMode: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PlayerControls), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+    tester.view.resetPhysicalSize();
+  });
+
+  testWidgets('UserMainLayout smartphone mode: vertical stack with side-by-side search and playlist', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: UserMainLayout(
+          songService: DummySongService(),
+          categoryService: DummyCategoryService(),
+          isTestMode: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Verifikasi SongCatalogPlaylistSection menggunakan axis: Axis.horizontal pada smartphone
+    final catalogFinder = find.byType(SongCatalogPlaylistSection);
+    expect(catalogFinder, findsOneWidget);
+    final catalogWidget = tester.widget<SongCatalogPlaylistSection>(catalogFinder);
+    expect(catalogWidget.axis, Axis.horizontal);
+
+    // 2. Verifikasi Posisi Vertikal: Player di bagian atas layar
+    final playerCenter = tester.getCenter(find.byType(PlayerDisplay));
+    final searchCenter = tester.getCenter(find.text('hasil pencarian'));
+    final playlistCenter = tester.getCenter(find.text('playlist'));
+
+    expect(playerCenter.dy, lessThan(searchCenter.dy));
+    expect(playerCenter.dy, lessThan(playlistCenter.dy));
+
+    // 3. Verifikasi Posisi Horizontal pada bagian bawah: Cari lagu di kiri, Playlist di kanan
+    expect(searchCenter.dx, lessThan(playlistCenter.dx));
+  });
 }

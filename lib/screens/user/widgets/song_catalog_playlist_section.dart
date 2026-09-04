@@ -15,6 +15,7 @@ class SongCatalogPlaylistSection extends StatefulWidget {
   final Function(int oldIndex, int newIndex)? onReorderQueue;
   final VoidCallback? onClearQueue;
   final Future<void> Function()? onRefresh;
+  final Axis axis;
 
   const SongCatalogPlaylistSection({
     super.key,
@@ -29,6 +30,7 @@ class SongCatalogPlaylistSection extends StatefulWidget {
     this.onReorderQueue,
     this.onClearQueue,
     this.onRefresh,
+    this.axis = Axis.horizontal,
   });
 
   @override
@@ -145,7 +147,36 @@ class _SongCatalogPlaylistSectionState extends State<SongCatalogPlaylistSection>
     const cardBg = Color(0xFF162235); // Dark navy card
     const cardBorder = Color(0xFF24364F);
 
-    final filteredSongs = _filteredSongs;
+    if (widget.axis == Axis.vertical) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Top section: Cari Lagu & Hasil Pencarian
+            Expanded(
+              flex: 5,
+              child: _buildSearchSection(
+                context,
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Bottom section: Playlist
+            Expanded(
+              flex: 4,
+              child: _buildPlaylistSection(
+                context,
+                filterPanelBg: filterPanelBg,
+                cardBg: cardBg,
+                cardBorder: cardBorder,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -154,335 +185,361 @@ class _SongCatalogPlaylistSectionState extends State<SongCatalogPlaylistSection>
         children: [
           // ================= LEFT COLUMN: CARI LAGU & HASIL PENCARIAN =================
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // 1. Search Bar
-                Container(
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E293B),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Cari lagu...',
-                      hintStyle: const TextStyle(color: Color(0xFF8E9BAE), fontSize: 12),
-                      prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF6FA4CE), size: 18),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 16),
-                              padding: EdgeInsets.zero,
-                              visualDensity: VisualDensity.compact,
-                              onPressed: () => _searchController.clear(),
-                            )
-                          : null,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // 2. Filter Box (Steel Blue Container, Expandable / Collapsible)
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3B5673),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF283B4F), width: 1.2),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Header Toggle Bar
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            _isFilterExpanded = !_isFilterExpanded;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(10),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.tune_rounded,
-                                color: Colors.white,
-                                size: 15,
-                              ),
-                              const SizedBox(width: 6),
-                              const Expanded(
-                                child: Text(
-                                  'Filter Lagu',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    letterSpacing: 0.2,
-                                  ),
-                                ),
-                              ),
-                              if (_hasActiveFilters) ...[
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accentCyan,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    '$_activeFilterCount aktif',
-                                    style: const TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                              ],
-                              Icon(
-                                _isFilterExpanded
-                                    ? Icons.keyboard_arrow_up_rounded
-                                    : Icons.keyboard_arrow_down_rounded,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // Dropdown Options (Collapsible)
-                      if (_isFilterExpanded)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(9, 2, 9, 9),
-                          child: Column(
-                            children: [
-                              // Dropdown: Judul Lagu
-                              _buildFilterDropdown(
-                                label: 'judul lagu',
-                                selectedValue: _selectedJudul,
-                                options: _judulOptions,
-                                onChanged: (val) {
-                                  setState(() {
-                                    _selectedJudul = val;
-                                  });
-                                },
-                              ),
-                              const SizedBox(height: 8),
-
-                              // Dropdown: Pencipta
-                              _buildFilterDropdown(
-                                label: 'pencipta',
-                                selectedValue: _selectedPencipta,
-                                options: _penciptaOptions,
-                                onChanged: (val) {
-                                  setState(() {
-                                    _selectedPencipta = val;
-                                  });
-                                },
-                              ),
-                              const SizedBox(height: 8),
-
-                              // Dropdown: Nada
-                              _buildFilterDropdown(
-                                label: 'nada',
-                                selectedValue: _selectedNada,
-                                options: _nadaOptions,
-                                onChanged: (val) {
-                                  setState(() {
-                                    _selectedNada = val;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // 3. Section Title: Hasil Pencarian
-                const Padding(
-                  padding: EdgeInsets.only(left: 2.0, bottom: 6.0),
-                  child: Text(
-                    'hasil pencarian',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF98B8DA),
-                    ),
-                  ),
-                ),
-
-                // 4. Hasil Pencarian Cards (Scrollable Area)
-                Expanded(
-                  child: widget.isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentCyan),
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : filteredSongs.isEmpty
-                          ? Container(
-                              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-                              decoration: BoxDecoration(
-                                color: cardBg.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: cardBorder),
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  'Tidak ada lagu yang cocok',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textMuted,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : ListView.separated(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              itemCount: filteredSongs.length,
-                              separatorBuilder: (context, index) => const SizedBox(height: 6),
-                              itemBuilder: (context, index) {
-                                final song = filteredSongs[index];
-                                final categoryName = _getCategoryName(
-                                  song.songcategory,
-                                  embeddedCategory: song.category,
-                                );
-                                final isCurrent = widget.currentPlayingSong?.songid == song.songid;
-
-                                return _buildSearchResultCard(
-                                  song: song,
-                                  categoryName: categoryName,
-                                  isCurrent: isCurrent,
-                                  cardBg: cardBg,
-                                  cardBorder: cardBorder,
-                                );
-                              },
-                            ),
-                ),
-              ],
+            child: _buildSearchSection(
+              context,
+              cardBg: cardBg,
+              cardBorder: cardBorder,
             ),
           ),
-
           const SizedBox(width: 10),
-
           // ================= RIGHT COLUMN: PLAYLIST =================
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // 1. Tab / Button Header: "playlist"
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: filterPanelBg,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: const Color(0xFF6B8FB5)),
-                    ),
-                    child: const Text(
-                      'playlist',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // 2. Playlist Container (Scrollable inside)
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: filterPanelBg,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFF6B8FB5)),
-                    ),
-                    child: widget.queue.isEmpty
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
-                            child: const Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.queue_music_rounded,
-                                    size: 28,
-                                    color: Colors.white54,
-                                  ),
-                                  SizedBox(height: 6),
-                                  Text(
-                                    'Playlist masih kosong',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  SizedBox(height: 2),
-                                  Text(
-                                    'Tekan ikon (+) pada lagu untuk menambahkan',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      color: Colors.white70,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
-                        : ReorderableListView.builder(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            buildDefaultDragHandles: false,
-                            itemCount: widget.queue.length,
-                            onReorder: (oldIndex, newIndex) {
-                              if (widget.onReorderQueue != null) {
-                                widget.onReorderQueue!(oldIndex, newIndex);
-                              }
-                            },
-                            itemBuilder: (context, index) {
-                              final song = widget.queue[index];
-                              final categoryName = _getCategoryName(
-                                song.songcategory,
-                                embeddedCategory: song.category,
-                              );
-
-                              return Padding(
-                                key: ValueKey('queue_${song.songid}_$index'),
-                                padding: const EdgeInsets.only(bottom: 6.0),
-                                child: _buildPlaylistCard(
-                                  song: song,
-                                  index: index,
-                                  categoryName: categoryName,
-                                  cardBg: cardBg,
-                                  cardBorder: cardBorder,
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ),
-              ],
+            child: _buildPlaylistSection(
+              context,
+              filterPanelBg: filterPanelBg,
+              cardBg: cardBg,
+              cardBorder: cardBorder,
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSearchSection(
+    BuildContext context, {
+    required Color cardBg,
+    required Color cardBorder,
+  }) {
+    final filteredSongs = _filteredSongs;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 1. Search Bar
+        Container(
+          height: 38,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          ),
+          child: TextField(
+            controller: _searchController,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'Cari lagu...',
+              hintStyle: const TextStyle(color: Color(0xFF8E9BAE), fontSize: 12),
+              prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF6FA4CE), size: 18),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 16),
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _searchController.clear(),
+                    )
+                  : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              isDense: true,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // 2. Filter Box (Steel Blue Container, Expandable / Collapsible)
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF3B5673),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF283B4F), width: 1.2),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header Toggle Bar
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _isFilterExpanded = !_isFilterExpanded;
+                  });
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.tune_rounded,
+                        color: Colors.white,
+                        size: 15,
+                      ),
+                      const SizedBox(width: 6),
+                      const Expanded(
+                        child: Text(
+                          'Filter Lagu',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                      if (_hasActiveFilters) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: AppColors.accentCyan,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$_activeFilterCount aktif',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      Icon(
+                        _isFilterExpanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Dropdown Options (Collapsible)
+              if (_isFilterExpanded)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(9, 2, 9, 9),
+                  child: Column(
+                    children: [
+                      // Dropdown: Judul Lagu
+                      _buildFilterDropdown(
+                        label: 'judul lagu',
+                        selectedValue: _selectedJudul,
+                        options: _judulOptions,
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedJudul = val;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Dropdown: Pencipta
+                      _buildFilterDropdown(
+                        label: 'pencipta',
+                        selectedValue: _selectedPencipta,
+                        options: _penciptaOptions,
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedPencipta = val;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Dropdown: Nada
+                      _buildFilterDropdown(
+                        label: 'nada',
+                        selectedValue: _selectedNada,
+                        options: _nadaOptions,
+                        onChanged: (val) {
+                          setState(() {
+                            _selectedNada = val;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // 3. Section Title: Hasil Pencarian
+        const Padding(
+          padding: EdgeInsets.only(left: 2.0, bottom: 6.0),
+          child: Text(
+            'hasil pencarian',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF98B8DA),
+            ),
+          ),
+        ),
+
+        // 4. Hasil Pencarian Cards (Scrollable Area)
+        Expanded(
+          child: widget.isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentCyan),
+                    strokeWidth: 2,
+                  ),
+                )
+              : filteredSongs.isEmpty
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: cardBg.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: cardBorder),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Tidak ada lagu yang cocok',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      itemCount: filteredSongs.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 6),
+                      itemBuilder: (context, index) {
+                        final song = filteredSongs[index];
+                        final categoryName = _getCategoryName(
+                          song.songcategory,
+                          embeddedCategory: song.category,
+                        );
+                        final isCurrent = widget.currentPlayingSong?.songid == song.songid;
+
+                        return _buildSearchResultCard(
+                          song: song,
+                          categoryName: categoryName,
+                          isCurrent: isCurrent,
+                          cardBg: cardBg,
+                          cardBorder: cardBorder,
+                        );
+                      },
+                    ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlaylistSection(
+    BuildContext context, {
+    required Color filterPanelBg,
+    required Color cardBg,
+    required Color cardBorder,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 1. Tab / Button Header: "playlist"
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: filterPanelBg,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: const Color(0xFF6B8FB5)),
+            ),
+            child: const Text(
+              'playlist',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // 2. Playlist Container (Scrollable inside)
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: filterPanelBg,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xFF6B8FB5)),
+            ),
+            child: widget.queue.isEmpty
+                ? Container(
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.queue_music_rounded,
+                            size: 28,
+                            color: Colors.white54,
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Playlist masih kosong',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Tekan ikon (+) pada lagu untuk menambahkan',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.white70,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ReorderableListView.builder(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    buildDefaultDragHandles: false,
+                    itemCount: widget.queue.length,
+                    onReorder: (oldIndex, newIndex) {
+                      if (widget.onReorderQueue != null) {
+                        widget.onReorderQueue!(oldIndex, newIndex);
+                      }
+                    },
+                    itemBuilder: (context, index) {
+                      final song = widget.queue[index];
+                      final categoryName = _getCategoryName(
+                        song.songcategory,
+                        embeddedCategory: song.category,
+                      );
+
+                      return Padding(
+                        key: ValueKey('queue_${song.songid}_$index'),
+                        padding: const EdgeInsets.only(bottom: 6.0),
+                        child: _buildPlaylistCard(
+                          song: song,
+                          index: index,
+                          categoryName: categoryName,
+                          cardBg: cardBg,
+                          cardBorder: cardBorder,
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ),
+      ],
     );
   }
 

@@ -76,13 +76,13 @@ class _PlayerControlsState extends State<PlayerControls> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 650;
+        final isNarrow = constraints.maxWidth < 480;
 
         return Container(
           width: double.infinity,
           padding: EdgeInsets.symmetric(
-            horizontal: isNarrow ? 12 : 16,
-            vertical: isNarrow ? 6 : 10,
+            horizontal: isNarrow ? 12 : 14,
+            vertical: isNarrow ? 6 : 8,
           ),
           decoration: BoxDecoration(
             color: const Color(0xFF0F172A).withValues(alpha: 0.95),
@@ -118,8 +118,8 @@ class _PlayerControlsState extends State<PlayerControls> {
           child: Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
                   color: AppColors.primaryElectric.withValues(alpha: 0.2),
@@ -133,11 +133,11 @@ class _PlayerControlsState extends State<PlayerControls> {
                   child: Icon(
                     isPlaying ? Icons.graphic_eq_rounded : Icons.music_note_rounded,
                     color: isPlaying ? AppColors.accentCyan : AppColors.textMuted,
-                    size: 22,
+                    size: 20,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,7 +148,7 @@ class _PlayerControlsState extends State<PlayerControls> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -160,7 +160,7 @@ class _PlayerControlsState extends State<PlayerControls> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: AppColors.accentSky,
                         ),
@@ -173,11 +173,11 @@ class _PlayerControlsState extends State<PlayerControls> {
           ),
         ),
 
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
 
-        // 2. Kolom Tengah (flex 5): Playback Buttons & Seekbar
+        // 2. Kolom Tengah (flex 4): Playback Buttons & Seekbar
         Expanded(
-          flex: 5,
+          flex: 4,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -190,19 +190,19 @@ class _PlayerControlsState extends State<PlayerControls> {
                     tooltip: 'Berhenti',
                     icon: const Icon(Icons.stop_rounded),
                     color: hasSong && isPlaying ? AppColors.error : AppColors.textMuted,
-                    iconSize: 26,
+                    iconSize: 24,
                     visualDensity: VisualDensity.compact,
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 10),
 
                   // Main Play / Pause Button
                   InkWell(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(22),
                     onTap: hasSong ? widget.onTogglePlayPause : null,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
-                      width: 48,
-                      height: 48,
+                      width: 42,
+                      height: 42,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: hasSong ? AppColors.buttonGradient : null,
@@ -221,7 +221,7 @@ class _PlayerControlsState extends State<PlayerControls> {
                         child: Icon(
                           isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                           color: hasSong ? Colors.white : AppColors.textMuted,
-                          size: 30,
+                          size: 26,
                         ),
                       ),
                     ),
@@ -233,7 +233,7 @@ class _PlayerControlsState extends State<PlayerControls> {
               Row(
                 children: [
                   SizedBox(
-                    width: 40,
+                    width: 36,
                     child: Text(
                       _formatDuration(
                         _isDragging
@@ -242,7 +242,7 @@ class _PlayerControlsState extends State<PlayerControls> {
                       ),
                       textAlign: TextAlign.left,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w600,
                         color: AppColors.accentLight,
                       ),
@@ -252,8 +252,8 @@ class _PlayerControlsState extends State<PlayerControls> {
                     child: SliderTheme(
                       data: SliderTheme.of(context).copyWith(
                         trackHeight: 3,
-                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 9),
+                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4.5),
+                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 8),
                         activeTrackColor: hasSong ? AppColors.accentCyan : AppColors.textMuted,
                         inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
                         thumbColor: hasSong ? Colors.white : AppColors.textMuted,
@@ -290,12 +290,12 @@ class _PlayerControlsState extends State<PlayerControls> {
                     ),
                   ),
                   SizedBox(
-                    width: 40,
+                    width: 36,
                     child: Text(
                       _formatDuration(widget.totalDuration),
                       textAlign: TextAlign.right,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textMuted,
                       ),
@@ -307,90 +307,97 @@ class _PlayerControlsState extends State<PlayerControls> {
           ),
         ),
 
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
 
-        // 3. Kolom Kanan (flex 3): Volume & Fullscreen Button
+        // 3. Kolom Kanan (flex 3): Volume & Fullscreen Button (Adaptif & Bebas Overflow)
         Expanded(
           flex: 3,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              IconButton(
-                onPressed: widget.onToggleMute,
-                iconSize: 18,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                visualDensity: VisualDensity.compact,
-                tooltip: widget.isMuted ? 'Batal Bisukan' : 'Bisukan',
-                icon: Icon(
-                  widget.isMuted || widget.volume == 0.0
-                      ? Icons.volume_off_rounded
-                      : (widget.volume < 0.5 ? Icons.volume_down_rounded : Icons.volume_up_rounded),
-                  color: widget.isMuted ? AppColors.error : AppColors.accentSky,
-                ),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: widget.onToggleMute,
+                    iconSize: 18,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: widget.isMuted ? 'Batal Bisukan' : 'Bisukan',
+                    icon: Icon(
+                      widget.isMuted || widget.volume == 0.0
+                          ? Icons.volume_off_rounded
+                          : (widget.volume < 0.5 ? Icons.volume_down_rounded : Icons.volume_up_rounded),
+                      color: widget.isMuted ? AppColors.error : AppColors.accentSky,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  SizedBox(
+                    width: 55,
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 3,
+                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4.5),
+                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 7),
+                        activeTrackColor: widget.isMuted ? AppColors.textMuted : AppColors.accentCyan,
+                        inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
+                        thumbColor: Colors.white,
+                      ),
+                      child: Slider(
+                        value: widget.isMuted ? 0.0 : widget.volume,
+                        min: 0.0,
+                        max: 1.0,
+                        onChanged: (val) {
+                          widget.onVolumeChanged?.call(val);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    '${(widget.isMuted ? 0 : (widget.volume * 100).toInt())}%',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  if (widget.onCastTapped != null) ...[
+                    const SizedBox(width: 2),
+                    IconButton(
+                      onPressed: widget.onCastTapped,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: widget.isCasting ? 'Putus Cast' : 'Cast ke TV',
+                      icon: Icon(
+                        widget.isCasting ? Icons.cast_connected_rounded : Icons.cast_rounded,
+                        color: widget.isCasting ? AppColors.accentCyan : AppColors.accentSky,
+                        size: 18,
+                      ),
+                    ),
+                  ],
+                  if (widget.onToggleFullscreen != null) ...[
+                    const SizedBox(width: 2),
+                    IconButton(
+                      onPressed: widget.onToggleFullscreen,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: widget.isFullscreen ? 'Perkecil Layar' : 'Layar Penuh',
+                      icon: Icon(
+                        widget.isFullscreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                        color: AppColors.accentSky,
+                        size: 18,
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(width: 2),
-              SizedBox(
-                width: 65,
-                child: SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 3,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 8),
-                    activeTrackColor: widget.isMuted ? AppColors.textMuted : AppColors.accentCyan,
-                    inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
-                    thumbColor: Colors.white,
-                  ),
-                  child: Slider(
-                    value: widget.isMuted ? 0.0 : widget.volume,
-                    min: 0.0,
-                    max: 1.0,
-                    onChanged: (val) {
-                      widget.onVolumeChanged?.call(val);
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${(widget.isMuted ? 0 : (widget.volume * 100).toInt())}%',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textMuted,
-                ),
-              ),
-              if (widget.onCastTapped != null) ...[
-                const SizedBox(width: 2),
-                IconButton(
-                  onPressed: widget.onCastTapped,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  visualDensity: VisualDensity.compact,
-                  tooltip: widget.isCasting ? 'Putus Cast' : 'Cast ke TV',
-                  icon: Icon(
-                    widget.isCasting ? Icons.cast_connected_rounded : Icons.cast_rounded,
-                    color: widget.isCasting ? AppColors.accentCyan : AppColors.accentSky,
-                    size: 18,
-                  ),
-                ),
-              ],
-              if (widget.onToggleFullscreen != null) ...[
-                const SizedBox(width: 2),
-                IconButton(
-                  onPressed: widget.onToggleFullscreen,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                  visualDensity: VisualDensity.compact,
-                  tooltip: widget.isFullscreen ? 'Perkecil Layar' : 'Layar Penuh',
-                  icon: Icon(
-                    widget.isFullscreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
-                    color: AppColors.accentSky,
-                    size: 18,
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ],

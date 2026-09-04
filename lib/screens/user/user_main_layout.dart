@@ -681,152 +681,224 @@ class _UserMainLayoutState extends State<UserMainLayout> {
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final isDesktop = constraints.maxWidth >= 850;
-                    final isHeightConstrained = MediaQuery.of(context).size.height < 620;
-                    final contentMaxWidth = isDesktop ? 500.0 : double.infinity;
+                    final isTablet = constraints.maxWidth >= 768;
 
-                    if (isHeightConstrained) {
-                      return SingleChildScrollView(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isDesktop ? 40 : 14,
-                          vertical: isDesktop ? 12 : 6,
-                        ),
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(maxWidth: contentMaxWidth),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // Player Cinema Stage (Full Width)
-                                PlayerDisplay(
-                                  song: _currentSong,
-                                  isPlaying: _isPlaying,
-                                  currentPosition: _currentPosition,
-                                  totalDuration: _totalDuration,
-                                  queueCount: _queue.length,
-                                  isFullscreen: _isFullscreen,
-                                  youtubeController: _youtubeController,
-                                  isTestMode: widget.isTestMode,
-                                  onPlayPauseTapped: _togglePlayPause,
-                                  onOpenSearchModal: () => _openSongSearchModal(context),
-                                ),
-                                const SizedBox(height: 8),
-
-                                // Studio Playback Controls
-                                PlayerControls(
-                                  song: _currentSong,
-                                  isPlaying: _isPlaying,
-                                  hasSong: _currentSong != null,
-                                  currentPosition: _currentPosition,
-                                  totalDuration: _totalDuration,
-                                  onSeek: _seek,
-                                  onTogglePlayPause: _togglePlayPause,
-                                  onStop: _stopSong,
-                                  onNext: _nextSong,
-                                  onPrevious: _previousSong,
-                                  volume: _volume,
-                                  isMuted: _isMuted,
-                                  isFullscreen: _isFullscreen,
-                                  onToggleFullscreen: _toggleFullscreen,
-                                  onVolumeChanged: _onVolumeChanged,
-                                  onToggleMute: _toggleMute,
-                                  onCastTapped: () => _openCastModal(context),
-                                  isCasting: _castService.connectedDevice != null,
-                                ),
-                                const SizedBox(height: 10),
-
-                                // Cari Lagu & Playlist Section
-                                SizedBox(
-                                  height: 480,
-                                  child: SongCatalogPlaylistSection(
-                                    songs: _allSongs,
-                                    categories: _categories,
-                                    queue: _queue,
-                                    currentPlayingSong: _currentSong,
-                                    isLoading: _isLoading,
-                                    onPlaySong: _playSong,
-                                    onAddToQueue: _addToQueue,
-                                    onRemoveFromQueue: _removeFromQueue,
-                                    onReorderQueue: _reorderQueue,
-                                    onClearQueue: _clearQueue,
-                                    onRefresh: _loadData,
+                    // ================= 1. TABLET LAYOUT (>= 768px) =================
+                    // Kolom Kiri (Besar): Player Display & Controls
+                    // Kolom Kanan (Bertingkat): Cari Lagu (Atas) & Playlist (Bawah)
+                    if (isTablet) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Kolom Kiri: Player Stage & Controls
+                            Expanded(
+                              flex: 11,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Player Cinema Stage (Lebar & Besar 16:9)
+                                  PlayerDisplay(
+                                    song: _currentSong,
+                                    isPlaying: _isPlaying,
+                                    currentPosition: _currentPosition,
+                                    totalDuration: _totalDuration,
+                                    queueCount: _queue.length,
+                                    isFullscreen: _isFullscreen,
+                                    youtubeController: _youtubeController,
+                                    isTestMode: widget.isTestMode,
+                                    onPlayPauseTapped: _togglePlayPause,
+                                    onOpenSearchModal: () => _openSongSearchModal(context),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 10),
+
+                                  // Studio Playback Controls
+                                  PlayerControls(
+                                    song: _currentSong,
+                                    isPlaying: _isPlaying,
+                                    hasSong: _currentSong != null,
+                                    currentPosition: _currentPosition,
+                                    totalDuration: _totalDuration,
+                                    onSeek: _seek,
+                                    onTogglePlayPause: _togglePlayPause,
+                                    onStop: _stopSong,
+                                    onNext: _nextSong,
+                                    onPrevious: _previousSong,
+                                    volume: _volume,
+                                    isMuted: _isMuted,
+                                    isFullscreen: _isFullscreen,
+                                    onToggleFullscreen: _toggleFullscreen,
+                                    onVolumeChanged: _onVolumeChanged,
+                                    onToggleMute: _toggleMute,
+                                    onCastTapped: () => _openCastModal(context),
+                                    isCasting: _castService.connectedDevice != null,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+
+                            const SizedBox(width: 14),
+
+                            // Kolom Kanan: Cari Lagu di Atas & Playlist di Bawah
+                            Expanded(
+                              flex: 9,
+                              child: SongCatalogPlaylistSection(
+                                axis: Axis.vertical,
+                                songs: _allSongs,
+                                categories: _categories,
+                                queue: _queue,
+                                currentPlayingSong: _currentSong,
+                                isLoading: _isLoading,
+                                onPlaySong: _playSong,
+                                onAddToQueue: _addToQueue,
+                                onRemoveFromQueue: _removeFromQueue,
+                                onReorderQueue: _reorderQueue,
+                                onClearQueue: _clearQueue,
+                                onRefresh: _loadData,
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     }
 
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: contentMaxWidth),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isDesktop ? 40 : 14,
-                            vertical: isDesktop ? 12 : 6,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Player Cinema Stage (Full Width, Fixed)
-                              PlayerDisplay(
-                                song: _currentSong,
-                                isPlaying: _isPlaying,
-                                currentPosition: _currentPosition,
-                                totalDuration: _totalDuration,
-                                queueCount: _queue.length,
-                                isFullscreen: _isFullscreen,
-                                youtubeController: _youtubeController,
-                                isTestMode: widget.isTestMode,
-                                onPlayPauseTapped: _togglePlayPause,
-                                onOpenSearchModal: () => _openSongSearchModal(context),
-                              ),
-                              const SizedBox(height: 8),
+                    // ================= 2. SMARTPHONE LAYOUT (< 768px) =================
+                    // Tampilan vertikal semula tanpa perubahan
+                    final isHeightConstrained = MediaQuery.of(context).size.height < 620;
 
-                              // Studio Playback Controls (Fixed)
-                              PlayerControls(
-                                song: _currentSong,
-                                isPlaying: _isPlaying,
-                                hasSong: _currentSong != null,
-                                currentPosition: _currentPosition,
-                                totalDuration: _totalDuration,
-                                onSeek: _seek,
-                                onTogglePlayPause: _togglePlayPause,
-                                onStop: _stopSong,
-                                onNext: _nextSong,
-                                onPrevious: _previousSong,
-                                volume: _volume,
-                                isMuted: _isMuted,
-                                isFullscreen: _isFullscreen,
-                                onToggleFullscreen: _toggleFullscreen,
-                                onVolumeChanged: _onVolumeChanged,
-                                onToggleMute: _toggleMute,
-                                onCastTapped: () => _openCastModal(context),
-                                isCasting: _castService.connectedDevice != null,
-                              ),
-                              const SizedBox(height: 10),
-
-                              // Cari Lagu & Playlist Section (Hanya bagian ini yang scrollable mandiri)
-                              Expanded(
-                                child: SongCatalogPlaylistSection(
-                                  songs: _allSongs,
-                                  categories: _categories,
-                                  queue: _queue,
-                                  currentPlayingSong: _currentSong,
-                                  isLoading: _isLoading,
-                                  onPlaySong: _playSong,
-                                  onAddToQueue: _addToQueue,
-                                  onRemoveFromQueue: _removeFromQueue,
-                                  onReorderQueue: _reorderQueue,
-                                  onClearQueue: _clearQueue,
-                                  onRefresh: _loadData,
-                                ),
-                              ),
-                            ],
-                          ),
+                    if (isHeightConstrained) {
+                      return SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 6,
                         ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Player Cinema Stage (Full Width)
+                            PlayerDisplay(
+                              song: _currentSong,
+                              isPlaying: _isPlaying,
+                              currentPosition: _currentPosition,
+                              totalDuration: _totalDuration,
+                              queueCount: _queue.length,
+                              isFullscreen: _isFullscreen,
+                              youtubeController: _youtubeController,
+                              isTestMode: widget.isTestMode,
+                              onPlayPauseTapped: _togglePlayPause,
+                              onOpenSearchModal: () => _openSongSearchModal(context),
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Studio Playback Controls
+                            PlayerControls(
+                              song: _currentSong,
+                              isPlaying: _isPlaying,
+                              hasSong: _currentSong != null,
+                              currentPosition: _currentPosition,
+                              totalDuration: _totalDuration,
+                              onSeek: _seek,
+                              onTogglePlayPause: _togglePlayPause,
+                              onStop: _stopSong,
+                              onNext: _nextSong,
+                              onPrevious: _previousSong,
+                              volume: _volume,
+                              isMuted: _isMuted,
+                              isFullscreen: _isFullscreen,
+                              onToggleFullscreen: _toggleFullscreen,
+                              onVolumeChanged: _onVolumeChanged,
+                              onToggleMute: _toggleMute,
+                              onCastTapped: () => _openCastModal(context),
+                              isCasting: _castService.connectedDevice != null,
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Cari Lagu & Playlist Section (Berdampingan secara horizontal di mobile)
+                            SizedBox(
+                              height: 480,
+                              child: SongCatalogPlaylistSection(
+                                songs: _allSongs,
+                                categories: _categories,
+                                queue: _queue,
+                                currentPlayingSong: _currentSong,
+                                isLoading: _isLoading,
+                                onPlaySong: _playSong,
+                                onAddToQueue: _addToQueue,
+                                onRemoveFromQueue: _removeFromQueue,
+                                onReorderQueue: _reorderQueue,
+                                onClearQueue: _clearQueue,
+                                onRefresh: _loadData,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Player Cinema Stage (Full Width, Fixed)
+                          PlayerDisplay(
+                            song: _currentSong,
+                            isPlaying: _isPlaying,
+                            currentPosition: _currentPosition,
+                            totalDuration: _totalDuration,
+                            queueCount: _queue.length,
+                            isFullscreen: _isFullscreen,
+                            youtubeController: _youtubeController,
+                            isTestMode: widget.isTestMode,
+                            onPlayPauseTapped: _togglePlayPause,
+                            onOpenSearchModal: () => _openSongSearchModal(context),
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Studio Playback Controls (Fixed)
+                          PlayerControls(
+                            song: _currentSong,
+                            isPlaying: _isPlaying,
+                            hasSong: _currentSong != null,
+                            currentPosition: _currentPosition,
+                            totalDuration: _totalDuration,
+                            onSeek: _seek,
+                            onTogglePlayPause: _togglePlayPause,
+                            onStop: _stopSong,
+                            onNext: _nextSong,
+                            onPrevious: _previousSong,
+                            volume: _volume,
+                            isMuted: _isMuted,
+                            isFullscreen: _isFullscreen,
+                            onToggleFullscreen: _toggleFullscreen,
+                            onVolumeChanged: _onVolumeChanged,
+                            onToggleMute: _toggleMute,
+                            onCastTapped: () => _openCastModal(context),
+                            isCasting: _castService.connectedDevice != null,
+                          ),
+                          const SizedBox(height: 10),
+
+                          // Cari Lagu & Playlist Section
+                          Expanded(
+                            child: SongCatalogPlaylistSection(
+                              songs: _allSongs,
+                              categories: _categories,
+                              queue: _queue,
+                              currentPlayingSong: _currentSong,
+                              isLoading: _isLoading,
+                              onPlaySong: _playSong,
+                              onAddToQueue: _addToQueue,
+                              onRemoveFromQueue: _removeFromQueue,
+                              onReorderQueue: _reorderQueue,
+                              onClearQueue: _clearQueue,
+                              onRefresh: _loadData,
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },
