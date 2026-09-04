@@ -252,6 +252,12 @@ void main() {
     await tester.tap(pauseBtn.first);
     await tester.pump(const Duration(milliseconds: 200));
 
+    // Tombol Next (Lagu Berikutnya) pada kontroler tablet/desktop
+    final nextBtn = find.byTooltip('Lagu Berikutnya');
+    expect(nextBtn, findsOneWidget);
+    await tester.tap(nextBtn);
+    await tester.pumpAndSettle();
+
     // Kontrol Bisukan (Mute)
     final muteBtn = find.byIcon(Icons.volume_up_rounded).first;
     await tester.tap(muteBtn);
@@ -543,7 +549,10 @@ void main() {
     // 3. Verifikasi Posisi Vertikal pada kolom kanan: Cari lagu di atas, Playlist di bawah
     expect(searchCenter.dy, lessThan(playlistCenter.dy));
 
-    // 4. Verifikasi tidak ada error overflow pada mode tablet (PlayerControls bebas overflow)
+    // 4. Verifikasi tombol navigasi playback pada PlayerControls tablet memuat tombol Next
+    expect(find.byTooltip('Lagu Berikutnya'), findsOneWidget);
+
+    // 5. Verifikasi tidak ada error overflow pada mode tablet (PlayerControls bebas overflow)
     expect(tester.takeException(), isNull);
   });
 

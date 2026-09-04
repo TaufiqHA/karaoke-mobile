@@ -226,6 +226,18 @@ class _PlayerControlsState extends State<PlayerControls> {
                       ),
                     ),
                   ),
+
+                  if (widget.onNext != null) ...[
+                    const SizedBox(width: 10),
+                    IconButton(
+                      onPressed: hasSong ? widget.onNext : null,
+                      tooltip: 'Lagu Berikutnya',
+                      icon: const Icon(Icons.skip_next_rounded),
+                      color: hasSong ? Colors.white : AppColors.textMuted,
+                      iconSize: 24,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
                 ],
               ),
 
