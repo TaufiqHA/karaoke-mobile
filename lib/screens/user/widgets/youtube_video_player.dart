@@ -44,7 +44,81 @@ class YoutubeVideoPlayerWidget extends StatelessWidget {
             key: controller != null ? ObjectKey(controller) : null,
             controller: controller!,
             aspectRatio: 16 / 9,
+            autoFullScreen: false,
+            enableFullScreenOnVerticalDrag: false,
+            controlsBuilder: (context, isFullscreen) {
+              if (!isFullscreen) return const SizedBox.shrink();
+              return buildFullscreenOverlay(
+                context: context,
+                songTitle: songTitle,
+                songSinger: songSinger,
+                onExitFullScreen: () => controller?.exitFullScreen(),
+              );
+            },
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Overlay kontrol di layar penuh (info judul lagu & tombol tutup fullscreen)
+  static Widget buildFullscreenOverlay({
+    required BuildContext context,
+    required String songTitle,
+    required String songSinger,
+    VoidCallback? onExitFullScreen,
+  }) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Badge Info Lagu
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white24, width: 0.8),
+                ),
+                child: Text(
+                  '$songTitle - $songSinger',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Tombol Exit / Close Fullscreen
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onExitFullScreen,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.65),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white24, width: 0.8),
+                  ),
+                  child: const Icon(
+                    Icons.fullscreen_exit_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

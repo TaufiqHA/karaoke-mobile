@@ -132,6 +132,13 @@ class _UserMainLayoutState extends State<UserMainLayout> {
           }
         }
 
+        // Sinkronisasi status fullscreen jika controller berubah
+        if (_isFullscreen != value.fullScreenOption.enabled) {
+          setState(() {
+            _isFullscreen = value.fullScreenOption.enabled;
+          });
+        }
+
         // Sinkronisasi total durasi video YouTube jika terdeteksi
         if (value.metaData.duration > Duration.zero &&
             _totalDuration != value.metaData.duration) {

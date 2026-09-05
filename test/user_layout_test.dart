@@ -761,6 +761,86 @@ void main() {
     }
     tester.view.resetPhysicalSize();
   });
+
+  testWidgets('UserMainLayout dynamic orientation rotation while playing music stays in responsive dual-column landscape layout', (WidgetTester tester) async {
+    // 1. Mulai dalam orientasi Smartphone Portrait (360 x 740)
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: UserMainLayout(
+          songService: DummySongService(),
+          categoryService: DummyCategoryService(),
+          isTestMode: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 2. Putar lagu di mode Portrait
+    await tester.tap(find.textContaining('Sial').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Putar'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(YoutubeVideoPlayerWidget), findsOneWidget);
+
+    // 3. Ubah orientasi menjadi Landscape (740 x 360) saat lagu sedang diputar
+    tester.view.physicalSize = const Size(740, 360);
+    await tester.pumpAndSettle();
+
+    // 4. Verifikasi bahwa layout tetap menampilkan dual-column responsif (bukan layar tertutup satu video tanpa tombol)
+    final playerCenter = tester.getCenter(find.byType(PlayerDisplay));
+    final catalogCenter = tester.getCenter(find.byType(SongCatalogPlaylistSection));
+
+    // Player di kolom kiri, Katalog/Playlist di kolom kanan
+    expect(playerCenter.dx, lessThan(catalogCenter.dx));
+    expect(find.text('Cari Lagu'), findsOneWidget);
+    expect(find.text('Playlist'), findsOneWidget);
+    expect(find.byType(PlayerControls), findsOneWidget);
+
+    // 5. Tombol Fullscreen dapat diakses
+    final fsBtn = find.byIcon(Icons.fullscreen_rounded);
+    expect(fsBtn, findsWidgets);
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('YoutubeVideoPlayerWidget renders fullscreen controls overlay with exit button and song details', (WidgetTester tester) async {
+    bool didExitFullScreen = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => YoutubeVideoPlayerWidget.buildFullscreenOverlay(
+              context: context,
+              songTitle: 'Lagu Karaoke Populer',
+              songSinger: 'Penyanyi Bintang',
+              onExitFullScreen: () {
+                didExitFullScreen = true;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verifikasi informasi lagu ditampilkan pada overlay fullscreen
+    expect(find.text('Lagu Karaoke Populer - Penyanyi Bintang'), findsOneWidget);
+
+    // Verifikasi tombol keluar fullscreen ada dan dapat diklik
+    final exitBtn = find.byIcon(Icons.fullscreen_exit_rounded);
+    expect(exitBtn, findsOneWidget);
+
+    await tester.tap(exitBtn);
+    await tester.pump();
+
+    expect(didExitFullScreen, isTrue);
+  });
 }
 
 
