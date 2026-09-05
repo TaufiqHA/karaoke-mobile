@@ -841,6 +841,70 @@ void main() {
 
     expect(didExitFullScreen, isTrue);
   });
+
+  testWidgets('UserMainLayout retains PlayerDisplay GlobalKey across portrait and landscape rotations without recreation', (WidgetTester tester) async {
+    // 1. Mulai dalam orientasi Smartphone Portrait (360 x 740)
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: UserMainLayout(
+          songService: DummySongService(),
+          categoryService: DummyCategoryService(),
+          isTestMode: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Putar lagu
+    await tester.tap(find.textContaining('Sial').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Putar'));
+    await tester.pumpAndSettle();
+
+    // Dapatkan PlayerDisplay widget dan GlobalKey-nya pada mode portrait
+    final playerFinderPortrait = find.byType(PlayerDisplay);
+    expect(playerFinderPortrait, findsOneWidget);
+    final portraitKey = tester.widget<PlayerDisplay>(playerFinderPortrait).key;
+    expect(portraitKey, isA<GlobalKey>());
+
+    // 2. Putar ke mode Landscape (740 x 360)
+    tester.view.physicalSize = const Size(740, 360);
+    await tester.pumpAndSettle();
+
+    final playerFinderLandscape = find.byType(PlayerDisplay);
+    expect(playerFinderLandscape, findsOneWidget);
+    final landscapeKey = tester.widget<PlayerDisplay>(playerFinderLandscape).key;
+
+    // Pastikan key yang sama persis (GlobalKey) dipertahankan pada landscape
+    expect(landscapeKey, equals(portraitKey));
+    expect(find.byType(YoutubeVideoPlayerWidget), findsOneWidget);
+
+    // 3. Putar ke mode Layar Kecil / Height-Constrained (360 x 500)
+    tester.view.physicalSize = const Size(360, 500);
+    await tester.pumpAndSettle();
+
+    final playerFinderConstrained = find.byType(PlayerDisplay);
+    expect(playerFinderConstrained, findsOneWidget);
+    final constrainedKey = tester.widget<PlayerDisplay>(playerFinderConstrained).key;
+
+    // Pastikan key tetap sama persis
+    expect(constrainedKey, equals(portraitKey));
+    expect(find.byType(YoutubeVideoPlayerWidget), findsOneWidget);
+
+    // 4. Putar kembali ke Portrait Normal (360 x 740)
+    tester.view.physicalSize = const Size(360, 740);
+    await tester.pumpAndSettle();
+
+    final playerFinderFinal = find.byType(PlayerDisplay);
+    expect(playerFinderFinal, findsOneWidget);
+    final finalKey = tester.widget<PlayerDisplay>(playerFinderFinal).key;
+    expect(finalKey, equals(portraitKey));
+    expect(find.byType(YoutubeVideoPlayerWidget), findsOneWidget);
+  });
 }
 
 

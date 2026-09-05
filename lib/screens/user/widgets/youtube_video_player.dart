@@ -46,6 +46,7 @@ class YoutubeVideoPlayerWidget extends StatelessWidget {
             aspectRatio: 16 / 9,
             autoFullScreen: false,
             enableFullScreenOnVerticalDrag: false,
+            keepAlive: true,
             controlsBuilder: (context, isFullscreen) {
               if (!isFullscreen) return const SizedBox.shrink();
               return buildFullscreenOverlay(

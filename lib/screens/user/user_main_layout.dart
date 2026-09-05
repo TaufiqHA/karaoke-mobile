@@ -65,6 +65,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
   final List<SongModel> _queue = [];
 
   // YouTube Player Controller
+  final GlobalKey _playerDisplayKey = GlobalKey();
   YoutubePlayerController? _youtubeController;
   StreamSubscription? _youtubePlayerSubscription;
   StreamSubscription<YoutubeVideoState>? _videoStateSubscription;
@@ -718,6 +719,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
                                   Expanded(
                                     child: Center(
                                       child: PlayerDisplay(
+                                        key: _playerDisplayKey,
                                         song: _currentSong,
                                         isPlaying: _isPlaying,
                                         currentPosition: _currentPosition,
@@ -797,6 +799,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
                           children: [
                             // Player Cinema Stage (Full Width)
                             PlayerDisplay(
+                              key: _playerDisplayKey,
                               song: _currentSong,
                               isPlaying: _isPlaying,
                               currentPosition: _currentPosition,
@@ -865,6 +868,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
                         children: [
                           // Player Cinema Stage (Full Width, Fixed)
                           PlayerDisplay(
+                            key: _playerDisplayKey,
                             song: _currentSong,
                             isPlaying: _isPlaying,
                             currentPosition: _currentPosition,
