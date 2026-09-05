@@ -691,5 +691,76 @@ void main() {
     expect(tester.widget<SongCatalogPlaylistSection>(catalogFinder).axis, Axis.vertical);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('UserMainLayout smartphone landscape mode: overflow-free on various phone screen resolutions', (WidgetTester tester) async {
+    const phoneLandscapeResolutions = [
+      Size(740, 360), // Small smartphone landscape
+      Size(800, 360), // Standard smartphone landscape
+      Size(844, 390), // iPhone 12/13/14 landscape
+      Size(915, 412), // Samsung Galaxy S20/S22/S24/S27 Ultra landscape
+      Size(932, 430), // iPhone 14/15 Pro Max landscape
+    ];
+
+    for (final res in phoneLandscapeResolutions) {
+      tester.view.physicalSize = res;
+      tester.view.devicePixelRatio = 1.0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: UserMainLayout(
+            key: ValueKey('user_layout_${res.width}_${res.height}'),
+            songService: DummySongService(),
+            categoryService: DummyCategoryService(),
+            isTestMode: true,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verifikasi sub-widget utama ter-render
+      expect(find.byType(PlayerDisplay), findsOneWidget);
+      expect(find.byType(PlayerControls), findsOneWidget);
+      expect(find.byType(SongCatalogPlaylistSection), findsOneWidget);
+
+      // Verifikasi posisi Player di kiri dan Section Lagu di kanan
+      final playerCenter = tester.getCenter(find.byType(PlayerDisplay));
+      final catalogCenter = tester.getCenter(find.byType(SongCatalogPlaylistSection));
+      expect(playerCenter.dx, lessThan(catalogCenter.dx));
+
+      // Verifikasi tab switch pada smartphone landscape
+      expect(find.text('Cari Lagu'), findsOneWidget);
+      expect(find.text('Playlist'), findsOneWidget);
+
+      // Verifikasi Tab 'Cari Lagu' aktif secara default
+      expect(find.text('hasil pencarian'), findsOneWidget);
+
+      // Beralih ke Tab 'Playlist'
+      await tester.tap(find.text('Playlist'));
+      await tester.pumpAndSettle();
+
+      // Verifikasi konten Playlist ditampilkan tanpa overflow
+      expect(find.text('Playlist masih kosong'), findsOneWidget);
+
+      // Beralih kembali ke Tab 'Cari Lagu'
+      await tester.tap(find.text('Cari Lagu'));
+      await tester.pumpAndSettle();
+
+      // Tambahkan lagu ke antrean via tombol (+)
+      final queueButtons = find.byTooltip('Tambah ke Playlist');
+      expect(queueButtons, findsWidgets);
+      await tester.tap(queueButtons.first);
+      await tester.pumpAndSettle();
+
+      // Beralih ke Tab Playlist dan verifikasi lagu telah bertambah
+      await tester.tap(find.text('Playlist'));
+      await tester.pumpAndSettle();
+      expect(find.text('Playlist masih kosong'), findsNothing);
+
+      // Verifikasi TIDAK ADA OVERFLOW sama sekali
+      expect(tester.takeException(), isNull);
+    }
+    tester.view.resetPhysicalSize();
+  });
 }
+
 

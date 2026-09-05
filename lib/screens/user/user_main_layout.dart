@@ -662,6 +662,9 @@ class _UserMainLayoutState extends State<UserMainLayout> {
   Widget build(BuildContext context) {
     final displayName = _currentUser?.displayName ?? 'Penyanyi';
     final username = _currentUser?.username ?? 'user';
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape ||
+        MediaQuery.of(context).size.width > MediaQuery.of(context).size.height;
+    final isCompactLandscape = isLandscape && MediaQuery.of(context).size.height < 550;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -675,45 +678,53 @@ class _UserMainLayoutState extends State<UserMainLayout> {
           child: Column(
             children: [
               // 1. Header Bar (Minimalis & Tanpa Subteks)
-              _buildHeader(displayName, username),
+              _buildHeader(displayName, username, isCompact: isCompactLandscape),
 
               // 2. Main Karaoke Screen Content
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape ||
+                    final isLandscapeLayout = isLandscape ||
                         constraints.maxWidth > constraints.maxHeight;
-                    final isTabletLandscape = constraints.maxWidth >= 768 && isLandscape;
 
-                    // ================= 1. TABLET LANDSCAPE LAYOUT (>= 768px & Landscape) =================
-                    // Kolom Kiri (Besar): Player Display & Controls
-                    // Kolom Kanan (Bertingkat): Cari Lagu (Atas) & Playlist (Bawah)
-                    if (isTabletLandscape) {
+                    // ================= 1. LANDSCAPE LAYOUT (Tablet & Smartphone) =================
+                    // Kolom Kiri: Player Display & Controls
+                    // Kolom Kanan: Cari Lagu & Playlist
+                    if (isLandscapeLayout) {
+                      final isCompact = constraints.maxHeight < 550;
+
                       return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isCompact ? 12 : 20,
+                          vertical: isCompact ? 4 : 8,
+                        ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Kolom Kiri: Player Stage & Controls
+                            // Kolom Kiri: Player Stage & Controls (Adaptif Tinggi)
                             Expanded(
-                              flex: 11,
+                              flex: isCompact ? 10 : 11,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  // Player Cinema Stage (Lebar & Besar 16:9)
-                                  PlayerDisplay(
-                                    song: _currentSong,
-                                    isPlaying: _isPlaying,
-                                    currentPosition: _currentPosition,
-                                    totalDuration: _totalDuration,
-                                    queueCount: _queue.length,
-                                    isFullscreen: _isFullscreen,
-                                    youtubeController: _youtubeController,
-                                    isTestMode: widget.isTestMode,
-                                    onPlayPauseTapped: _togglePlayPause,
-                                    onOpenSearchModal: () => _openSongSearchModal(context),
+                                  // Player Cinema Stage (Otomatis menyesuaikan sisa tinggi 16:9)
+                                  Expanded(
+                                    child: Center(
+                                      child: PlayerDisplay(
+                                        song: _currentSong,
+                                        isPlaying: _isPlaying,
+                                        currentPosition: _currentPosition,
+                                        totalDuration: _totalDuration,
+                                        queueCount: _queue.length,
+                                        isFullscreen: _isFullscreen,
+                                        youtubeController: _youtubeController,
+                                        isTestMode: widget.isTestMode,
+                                        onPlayPauseTapped: _togglePlayPause,
+                                        onOpenSearchModal: () => _openSongSearchModal(context),
+                                      ),
+                                    ),
                                   ),
-                                  const SizedBox(height: 10),
+                                  SizedBox(height: isCompact ? 6 : 10),
 
                                   // Studio Playback Controls
                                   PlayerControls(
@@ -740,11 +751,11 @@ class _UserMainLayoutState extends State<UserMainLayout> {
                               ),
                             ),
 
-                            const SizedBox(width: 14),
+                            SizedBox(width: isCompact ? 10 : 14),
 
-                            // Kolom Kanan: Cari Lagu di Atas & Playlist di Bawah
+                            // Kolom Kanan: Cari Lagu & Playlist (Vertikal untuk Tablet, Tabbed untuk Smartphone)
                             Expanded(
-                              flex: 9,
+                              flex: isCompact ? 10 : 9,
                               child: SongCatalogPlaylistSection(
                                 axis: Axis.vertical,
                                 songs: _allSongs,
@@ -765,8 +776,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
                       );
                     }
 
-                    // ================= 2. SMARTPHONE LAYOUT (< 768px) =================
-                    // Tampilan vertikal semula tanpa perubahan
+                    // ================= 2. SMARTPHONE PORTRAIT LAYOUT (< 768px atau Vertikal) =================
                     final isHeightConstrained = MediaQuery.of(context).size.height < 620;
 
                     if (isHeightConstrained) {
@@ -913,9 +923,9 @@ class _UserMainLayoutState extends State<UserMainLayout> {
     );
   }
 
-  Widget _buildHeader(String displayName, String username) {
+  Widget _buildHeader(String displayName, String username, {bool isCompact = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: isCompact ? 4.0 : 8.0),
       child: Row(
         children: [
           // Logo & Title (Clean & Minimalist: No subtexts!)

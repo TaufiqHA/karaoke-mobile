@@ -44,6 +44,7 @@ class _SongCatalogPlaylistSectionState extends State<SongCatalogPlaylistSection>
   String? _selectedPencipta;
   String? _selectedNada;
   bool _isFilterExpanded = false;
+  int _compactTabIndex = 0; // 0 = Cari Lagu, 1 = Playlist
 
   bool get _hasActiveFilters =>
       _selectedJudul != null || _selectedPencipta != null || _selectedNada != null;
@@ -147,62 +148,98 @@ class _SongCatalogPlaylistSectionState extends State<SongCatalogPlaylistSection>
     const cardBg = Color(0xFF162235); // Dark navy card
     const cardBorder = Color(0xFF24364F);
 
-    if (widget.axis == Axis.vertical) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Top section: Cari Lagu & Hasil Pencarian
-            Expanded(
-              flex: 5,
-              child: _buildSearchSection(
-                context,
-                cardBg: cardBg,
-                cardBorder: cardBorder,
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Bottom section: Playlist
-            Expanded(
-              flex: 4,
-              child: _buildPlaylistSection(
-                context,
-                filterPanelBg: filterPanelBg,
-                cardBg: cardBg,
-                cardBorder: cardBorder,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompactVertical =
+            widget.axis == Axis.vertical && constraints.maxHeight < 500;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // ================= LEFT COLUMN: CARI LAGU & HASIL PENCARIAN =================
-          Expanded(
-            child: _buildSearchSection(
-              context,
-              cardBg: cardBg,
-              cardBorder: cardBorder,
+        if (isCompactVertical) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Compact Segmented Tab Bar (Cari Lagu vs Playlist)
+                _buildCompactTabBar(),
+                // Tab Content
+                Expanded(
+                  child: _compactTabIndex == 0
+                      ? _buildSearchSection(
+                          context,
+                          cardBg: cardBg,
+                          cardBorder: cardBorder,
+                        )
+                      : _buildPlaylistSection(
+                          context,
+                          filterPanelBg: filterPanelBg,
+                          cardBg: cardBg,
+                          cardBorder: cardBorder,
+                          hideHeaderTab: true,
+                        ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 10),
-          // ================= RIGHT COLUMN: PLAYLIST =================
-          Expanded(
-            child: _buildPlaylistSection(
-              context,
-              filterPanelBg: filterPanelBg,
-              cardBg: cardBg,
-              cardBorder: cardBorder,
+          );
+        }
+
+        if (widget.axis == Axis.vertical) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Top section: Cari Lagu & Hasil Pencarian
+                Expanded(
+                  flex: 5,
+                  child: _buildSearchSection(
+                    context,
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Bottom section: Playlist
+                Expanded(
+                  flex: 4,
+                  child: _buildPlaylistSection(
+                    context,
+                    filterPanelBg: filterPanelBg,
+                    cardBg: cardBg,
+                    cardBorder: cardBorder,
+                  ),
+                ),
+              ],
             ),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ================= LEFT COLUMN: CARI LAGU & HASIL PENCARIAN =================
+              Expanded(
+                child: _buildSearchSection(
+                  context,
+                  cardBg: cardBg,
+                  cardBorder: cardBorder,
+                ),
+              ),
+              const SizedBox(width: 10),
+              // ================= RIGHT COLUMN: PLAYLIST =================
+              Expanded(
+                child: _buildPlaylistSection(
+                  context,
+                  filterPanelBg: filterPanelBg,
+                  cardBg: cardBg,
+                  cardBorder: cardBorder,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -316,7 +353,7 @@ class _SongCatalogPlaylistSectionState extends State<SongCatalogPlaylistSection>
                 ),
               ),
 
-              // Dropdown Options (Collapsible)
+              // Dropdown Options (Collapsible: hanya di-render saat dibuka)
               if (_isFilterExpanded)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(9, 2, 9, 9),
@@ -434,36 +471,162 @@ class _SongCatalogPlaylistSectionState extends State<SongCatalogPlaylistSection>
     );
   }
 
+  Widget _buildCompactTabBar() {
+    return Container(
+      height: 34,
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF162235),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF24364F)),
+      ),
+      child: Row(
+        children: [
+          // Tab Cari Lagu
+          Expanded(
+            child: InkWell(
+              onTap: () => setState(() => _compactTabIndex = 0),
+              borderRadius: BorderRadius.circular(7),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _compactTabIndex == 0
+                      ? AppColors.primaryElectric.withValues(alpha: 0.25)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(7),
+                  border: _compactTabIndex == 0
+                      ? Border.all(color: AppColors.accentCyan.withValues(alpha: 0.4))
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.search_rounded,
+                      size: 13,
+                      color: _compactTabIndex == 0
+                          ? AppColors.accentCyan
+                          : AppColors.textMuted,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Cari Lagu',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: _compactTabIndex == 0
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: _compactTabIndex == 0
+                            ? Colors.white
+                            : AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Tab Playlist
+          Expanded(
+            child: InkWell(
+              onTap: () => setState(() => _compactTabIndex = 1),
+              borderRadius: BorderRadius.circular(7),
+              child: Container(
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _compactTabIndex == 1
+                      ? AppColors.primaryElectric.withValues(alpha: 0.25)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(7),
+                  border: _compactTabIndex == 1
+                      ? Border.all(color: AppColors.accentCyan.withValues(alpha: 0.4))
+                      : null,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.queue_music_rounded,
+                      size: 13,
+                      color: _compactTabIndex == 1
+                          ? AppColors.accentCyan
+                          : AppColors.textMuted,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Playlist',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: _compactTabIndex == 1
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: _compactTabIndex == 1
+                            ? Colors.white
+                            : AppColors.textMuted,
+                      ),
+                    ),
+                    if (widget.queue.isNotEmpty) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppColors.accentCyan,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${widget.queue.length}',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPlaylistSection(
     BuildContext context, {
     required Color filterPanelBg,
     required Color cardBg,
     required Color cardBorder,
+    bool hideHeaderTab = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 1. Tab / Button Header: "playlist"
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: filterPanelBg,
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: const Color(0xFF6B8FB5)),
-            ),
-            child: const Text(
-              'playlist',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+        // 1. Tab / Button Header: "playlist" (hanya jika tidak menggunakan tab atas)
+        if (!hideHeaderTab) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: filterPanelBg,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFF6B8FB5)),
+              ),
+              child: const Text(
+                'playlist',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 8),
+          const SizedBox(height: 8),
+        ],
 
         // 2. Playlist Container (Scrollable inside)
         Expanded(
@@ -475,36 +638,39 @@ class _SongCatalogPlaylistSectionState extends State<SongCatalogPlaylistSection>
               border: Border.all(color: const Color(0xFF6B8FB5)),
             ),
             child: widget.queue.isEmpty
-                ? Container(
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
-                    child: const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.queue_music_rounded,
-                            size: 28,
-                            color: Colors.white54,
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            'Playlist masih kosong',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                ? Center(
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(
+                              Icons.queue_music_rounded,
+                              size: 26,
+                              color: Colors.white54,
                             ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Tekan ikon (+) pada lagu untuk menambahkan',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: Colors.white70,
+                            SizedBox(height: 4),
+                            Text(
+                              'Playlist masih kosong',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
-                        ],
+                            SizedBox(height: 2),
+                            Text(
+                              'Tekan ikon (+) pada lagu untuk menambahkan',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   )

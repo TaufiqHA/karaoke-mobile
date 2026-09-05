@@ -40,52 +40,15 @@ class PlayerDisplay extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 1. Top Mini Bar (Hanya tampil jika ada antrean)
-            if (queueCount > 0)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6.0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryElectric.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppColors.accentCyan.withValues(alpha: 0.3),
-                      width: 0.8,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.queue_music_rounded,
-                        size: 14,
-                        color: AppColors.accentSky,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$queueCount antrean',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.accentSky,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+        final isCompact = constraints.maxWidth < 450 || constraints.maxHeight < 250;
 
-            // 2. Main Stage Area (Luas & Terbuka: Langsung Video YouTube Full Width)
-            if (song != null) ...[
-              SizedBox(
-                width: double.infinity,
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
+        return AspectRatio(
+          aspectRatio: 16 / 9,
+          child: Stack(
+            children: [
+              // 1. Main Stage Area (YouTube Video or Clean Standby Stage)
+              if (song != null)
+                Positioned.fill(
                   child: YoutubeVideoPlayerWidget(
                     controller: youtubeController,
                     videoId: videoId,
@@ -95,16 +58,10 @@ class PlayerDisplay extends StatelessWidget {
                     onPlayTapped: onPlayPauseTapped,
                     isTestMode: isTestMode,
                   ),
-                ),
-              ),
-            ] else ...[
-              // Empty State Awal (Minimalis & Elegan Full Width)
-              SizedBox(
-                width: double.infinity,
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
+                )
+              else
+                Positioned.fill(
                   child: Container(
-                    width: double.infinity,
                     decoration: BoxDecoration(
                       color: const Color(0xFF0F172A).withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(16),
@@ -112,42 +69,87 @@ class PlayerDisplay extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.06),
                       ),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: constraints.maxWidth < 650 ? 46 : 56,
-                          height: constraints.maxWidth < 650 ? 46 : 56,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.primaryElectric.withValues(alpha: 0.2),
-                            border: Border.all(
-                              color: AppColors.accentCyan.withValues(alpha: 0.3),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: isCompact ? 40 : 54,
+                            height: isCompact ? 40 : 54,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.primaryElectric.withValues(alpha: 0.2),
+                              border: Border.all(
+                                color: AppColors.accentCyan.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.music_note_rounded,
+                              size: isCompact ? 20 : 28,
+                              color: AppColors.accentLight,
                             ),
                           ),
-                          child: Icon(
-                            Icons.music_note_rounded,
-                            size: constraints.maxWidth < 650 ? 24 : 30,
-                            color: AppColors.accentLight,
+                          SizedBox(height: isCompact ? 6 : 10),
+                          Text(
+                            'Player',
+                            style: TextStyle(
+                              fontSize: isCompact ? 14 : 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
                           ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              // 2. Queue Floating Badge (Pill di pojok kiri atas)
+              if (queueCount > 0)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.accentCyan.withValues(alpha: 0.4),
+                        width: 0.8,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 4,
                         ),
-                        SizedBox(height: constraints.maxWidth < 650 ? 8 : 12),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.queue_music_rounded,
+                          size: 13,
+                          color: AppColors.accentSky,
+                        ),
+                        const SizedBox(width: 4),
                         Text(
-                          'Player',
-                          style: TextStyle(
-                            fontSize: constraints.maxWidth < 650 ? 16 : 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
+                          '$queueCount antrean',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.accentSky,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              ),
             ],
-          ],
+          ),
         );
       },
     );
