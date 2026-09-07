@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_colors.dart';
 import 'screens/splash_screen.dart';
+import 'services/cast/smart_tv_cast_service.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Google Cast context
+  await SmartTvCastService.initGoogleCastContext();
 
   // Set status bar and navigation bar styling
   SystemChrome.setSystemUIOverlayStyle(

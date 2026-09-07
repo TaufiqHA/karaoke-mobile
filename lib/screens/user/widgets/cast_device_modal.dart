@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../services/cast/cast_device_model.dart';
@@ -53,47 +54,132 @@ class CastDeviceModal extends StatefulWidget {
 class _CastDeviceModalState extends State<CastDeviceModal> {
   final TextEditingController _codeController = TextEditingController();
   List<CastDevice> _devices = [];
-  bool _isLoading = false;
+  bool _isLoading = true;
+  String? _connectingDeviceId;
+  bool _isConnectingWithCode = false;
+  StreamSubscription? _devicesSubscription;
+  StreamSubscription? _connectedDeviceSubscription;
 
   @override
   void initState() {
     super.initState();
     _devices = widget.castService.discoveredDevices;
+    _devicesSubscription = widget.castService.devicesStream.listen((devices) {
+      if (mounted) {
+        setState(() {
+          _devices = devices;
+        });
+      }
+    });
+    _connectedDeviceSubscription = widget.castService.connectedDeviceStream.listen((_) {
+      if (mounted) setState(() {});
+    });
     _startScan();
   }
 
   @override
   void dispose() {
+    _devicesSubscription?.cancel();
+    _connectedDeviceSubscription?.cancel();
     _codeController.dispose();
+    widget.castService.stopDiscovery();
     super.dispose();
   }
 
   Future<void> _startScan() async {
-    setState(() {
-      _isLoading = true;
-    });
-    final devices = await widget.castService.scanDevices();
     if (mounted) {
       setState(() {
-        _devices = devices;
-        _isLoading = false;
+        _isLoading = true;
+      });
+    }
+
+    await widget.castService.startContinuousDiscovery();
+
+    if (mounted) {
+      setState(() {
+        _devices = widget.castService.discoveredDevices;
       });
     }
   }
 
   Future<void> _connect(CastDevice device) async {
-    await widget.castService.connect(device);
-    if (widget.currentVideoId != null) {
-      await widget.castService.castVideo(
-        widget.currentVideoId!,
-        title: widget.songTitle,
-        artist: widget.songSinger,
-        thumbnailUrl: widget.songThumbnail,
-      );
-    }
-    widget.onDeviceChanged?.call();
-    if (mounted) {
-      Navigator.of(context).pop();
+    if (_connectingDeviceId != null || _isConnectingWithCode) return;
+    setState(() {
+      _connectingDeviceId = device.id;
+    });
+
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    try {
+      final success = await widget.castService.connect(device);
+      bool castOk = true;
+      if (widget.currentVideoId != null) {
+        castOk = await widget.castService.castVideo(
+          widget.currentVideoId!,
+          title: widget.songTitle,
+          artist: widget.songSinger,
+          thumbnailUrl: widget.songThumbnail,
+        );
+      } else {
+        await widget.castService.wakeOrLaunchApp(device);
+      }
+      widget.onDeviceChanged?.call();
+      if (mounted) {
+        Navigator.of(context).pop();
+        if (success && !widget.castService.isTestMode) {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.tv_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      widget.currentVideoId != null
+                          ? (castOk
+                              ? 'Terhubung ke ${device.name}. Video sedang diputar di TV.'
+                              : 'Terhubung ke ${device.name}. Jika belum tampil di TV, izinkan koneksi menggunakan remote TV.')
+                          : 'Terhubung ke ${device.name}. Putar lagu untuk bernyanyi di TV.',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: castOk ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      if (mounted && !widget.castService.isTestMode) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Gagal menghubungkan ke ${device.name}. Pastikan TV menyala dan satu jaringan Wi-Fi.',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _connectingDeviceId = null;
+        });
+      }
     }
   }
 
@@ -107,20 +193,55 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
 
   Future<void> _connectWithCode() async {
     final code = _codeController.text.trim();
-    if (code.isEmpty) return;
+    if (code.isEmpty || _isConnectingWithCode || _connectingDeviceId != null) return;
 
-    await widget.castService.connectWithTvCode(code);
-    if (widget.currentVideoId != null) {
-      await widget.castService.castVideo(
-        widget.currentVideoId!,
-        title: widget.songTitle,
-        artist: widget.songSinger,
-        thumbnailUrl: widget.songThumbnail,
-      );
-    }
-    widget.onDeviceChanged?.call();
-    if (mounted) {
-      Navigator.of(context).pop();
+    setState(() {
+      _isConnectingWithCode = true;
+    });
+
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    try {
+      final success = await widget.castService.connectWithTvCode(code);
+      if (widget.currentVideoId != null) {
+        await widget.castService.castVideo(
+          widget.currentVideoId!,
+          title: widget.songTitle,
+          artist: widget.songSinger,
+          thumbnailUrl: widget.songThumbnail,
+        );
+      }
+      widget.onDeviceChanged?.call();
+      if (mounted) {
+        Navigator.of(context).pop();
+        if (success && !widget.castService.isTestMode) {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Terhubung dengan Kode TV ($code).',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isConnectingWithCode = false;
+        });
+      }
     }
   }
 
@@ -161,7 +282,7 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
           ),
           const SizedBox(height: 12),
 
-          // Header Bar Minimalis (Judul + Tombol Tutup, Tanpa Subteks)
+          // Header Bar Minimalis (Judul + Tombol Tutup)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -244,27 +365,45 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
 
           const SizedBox(height: 12),
 
-          // Loading Progress jika sedang memindai
+          // SATU-SATUNYA Progress Indicator: Garis Linear di Bawah Header
           if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: LinearProgressIndicator(
-                backgroundColor: Colors.white10,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentCyan),
-                minHeight: 2,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.all(Radius.circular(2)),
+                child: LinearProgressIndicator(
+                  value: widget.castService.isTestMode ? 0.5 : null,
+                  backgroundColor: Colors.white10,
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentCyan),
+                  minHeight: 2.5,
+                ),
               ),
             ),
 
-          // Daftar Perangkat TV (Ultra-Minimalis: Ikon + Nama TV)
+          // Daftar Perangkat TV atau Status Pencarian Terus Menerus
           ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 200),
-            child: _devices.isEmpty && !_isLoading
+            constraints: const BoxConstraints(maxHeight: 220),
+            child: _devices.isEmpty
                 ? const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
+                    padding: EdgeInsets.symmetric(vertical: 28),
                     child: Center(
-                      child: Text(
-                        'Perangkat tidak ditemukan',
-                        style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.tv_rounded,
+                            color: AppColors.textMuted,
+                            size: 28,
+                          ),
+                          SizedBox(height: 10),
+                          Text(
+                            'Mencari Smart TV di jaringan Wi-Fi...',
+                            style: TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   )
@@ -278,6 +417,7 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
                     itemBuilder: (context, index) {
                       final device = _devices[index];
                       final isCurrent = connectedDevice?.id == device.id;
+                      final isConnectingThis = _connectingDeviceId == device.id;
 
                       return ListTile(
                         dense: true,
@@ -297,18 +437,27 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
                             color: Colors.white,
                           ),
                         ),
-                        trailing: isCurrent
-                            ? const Icon(
-                                Icons.check_circle_rounded,
-                                color: AppColors.accentCyan,
-                                size: 18,
+                        trailing: isConnectingThis
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentCyan),
+                                ),
                               )
-                            : const Icon(
-                                Icons.chevron_right_rounded,
-                                color: AppColors.textMuted,
-                                size: 18,
-                              ),
-                        onTap: () => _connect(device),
+                            : isCurrent
+                                ? const Icon(
+                                    Icons.check_circle_rounded,
+                                    color: AppColors.accentCyan,
+                                    size: 18,
+                                  )
+                                : const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: AppColors.textMuted,
+                                    size: 18,
+                                  ),
+                        onTap: isConnectingThis ? null : () => _connect(device),
                       );
                     },
                   ),
@@ -352,7 +501,7 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
               SizedBox(
                 height: 40,
                 child: ElevatedButton(
-                  onPressed: _connectWithCode,
+                  onPressed: _isConnectingWithCode ? null : _connectWithCode,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryElectric,
                     foregroundColor: Colors.white,
@@ -362,10 +511,29 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text('Hubungkan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  child: _isConnectingWithCode
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text('Hubungkan', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
+          ),
+
+          const SizedBox(height: 10),
+          Text(
+            'Jika muncul konfirmasi di layar TV, tekan Izinkan pada remote.',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white.withValues(alpha: 0.45),
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

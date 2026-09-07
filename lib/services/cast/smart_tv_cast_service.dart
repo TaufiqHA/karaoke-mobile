@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_chrome_cast/flutter_chrome_cast.dart';
+import 'package:http/http.dart' as http;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'cast_device_model.dart';
 
@@ -32,28 +35,46 @@ class SmartTvCastService {
   Stream<List<CastDevice>> get devicesStream => _devicesController.stream;
   Stream<CastDevice?> get connectedDeviceStream => _connectedDeviceController.stream;
 
+  /// Inisialisasi Google Cast Context pada startup aplikasi
+  static Future<void> initGoogleCastContext() async {
+    try {
+      if (kIsWeb) return;
+      const appId = GoogleCastDiscoveryCriteria.kDefaultApplicationId;
+      GoogleCastOptions? options;
+
+      if (Platform.isIOS) {
+        options = IOSGoogleCastOptions(
+          GoogleCastDiscoveryCriteriaInitialize.initWithApplicationID(appId),
+          stopCastingOnAppTerminated: true,
+        );
+      } else if (Platform.isAndroid) {
+        options = GoogleCastOptionsAndroid(
+          appId: appId,
+          stopCastingOnAppTerminated: true,
+        );
+      }
+
+      if (options != null) {
+        GoogleCastContext.instance.setSharedInstanceWithOptions(options);
+      }
+    } catch (_) {
+      // Graceful fallback jika berjalan di environment testing atau desktop
+    }
+  }
+
   void _initGoogleCast() {
     try {
       // Inisialisasi listener perangkat dari Google Cast Discovery Manager
       _googleCastDevicesSubscription =
           GoogleCastDiscoveryManager.instance.devicesStream.listen((devices) {
-        for (final dev in devices) {
-          final id = 'chromecast_${dev.deviceID}';
-          if (!_discoveredDevices.any((d) => d.id == id)) {
-            _discoveredDevices.add(
-              CastDevice(
-                id: id,
-                name: dev.friendlyName,
-                ipAddress: 'Chromecast',
-                type: CastDeviceType.chromecast,
-              ),
-            );
-          }
-        }
-        if (!_devicesController.isClosed) {
-          _devicesController.add(List.from(_discoveredDevices));
-        }
+        _syncGoogleCastDevices(devices);
       }, onError: (_) {});
+
+      // Sinkronisasi perangkat yang mungkin sudah terdeteksi sebelumnya
+      final currentDevices = GoogleCastDiscoveryManager.instance.devices;
+      if (currentDevices.isNotEmpty) {
+        _syncGoogleCastDevices(currentDevices);
+      }
 
       // Inisialisasi listener status sesi Google Cast
       _googleCastSessionSubscription =
@@ -75,6 +96,29 @@ class SmartTvCastService {
       }, onError: (_) {});
     } catch (_) {
       // Jika Google Cast SDK belum siap atau platform tidak mendukung
+    }
+  }
+
+  void _syncGoogleCastDevices(List<GoogleCastDevice> devices) {
+    // Pertahankan perangkat non-chromecast (misal SSDP TV)
+    _discoveredDevices.removeWhere((d) => d.type == CastDeviceType.chromecast);
+
+    for (final dev in devices) {
+      final id = 'chromecast_${dev.deviceID}';
+      if (!_discoveredDevices.any((d) => d.id == id)) {
+        _discoveredDevices.add(
+          CastDevice(
+            id: id,
+            name: dev.friendlyName,
+            ipAddress: 'Chromecast',
+            type: CastDeviceType.chromecast,
+          ),
+        );
+      }
+    }
+
+    if (!_devicesController.isClosed) {
+      _devicesController.add(List.unmodifiable(_discoveredDevices));
     }
   }
 
@@ -109,30 +153,43 @@ class SmartTvCastService {
     return null;
   }
 
-  /// Memindai perangkat TV di jaringan lokal (Chromecast + Smart TV via SSDP)
-  Future<List<CastDevice>> scanDevices({Duration timeout = const Duration(seconds: 2)}) async {
-    _isScanning = true;
-    _discoveredDevices.clear();
-    _devicesController.add([]);
+  RawDatagramSocket? _ssdpSocket;
+  Timer? _ssdpPeriodicTimer;
+  StreamSubscription? _ssdpSubscription;
 
+  /// Memulai pemindaian berkelanjutan (Google Cast discovery + SSDP periodic polling)
+  Future<void> startContinuousDiscovery() async {
     if (isTestMode) {
+      _isScanning = false;
+      _discoveredDevices.clear();
       if (initialDevices != null) {
         _discoveredDevices.addAll(initialDevices!);
       }
-      _isScanning = false;
-      _devicesController.add(List.from(_discoveredDevices));
-      return _discoveredDevices;
+      if (!_devicesController.isClosed) {
+        _devicesController.add(List.unmodifiable(_discoveredDevices));
+      }
+      return;
     }
 
+    _isScanning = true;
+
     try {
-      // Trigger scan Google Cast Discovery
+      // 1. Google Cast Discovery
       GoogleCastDiscoveryManager.instance.startDiscovery();
+      final currentDevices = GoogleCastDiscoveryManager.instance.devices;
+      if (currentDevices.isNotEmpty) {
+        _syncGoogleCastDevices(currentDevices);
+      }
     } catch (_) {}
 
     try {
-      // SSDP M-SEARCH Multicast Discovery untuk Smart TV lainnya (Samsung, LG, Sony)
-      final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
-      socket.broadcastEnabled = true;
+      // 2. SSDP Continuous Discovery
+      _ssdpSubscription?.cancel();
+      _ssdpSocket?.close();
+      _ssdpPeriodicTimer?.cancel();
+
+      _ssdpSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+      _ssdpSocket?.broadcastEnabled = true;
 
       const ssdpSearch =
           'M-SEARCH * HTTP/1.1\r\n'
@@ -142,11 +199,14 @@ class SmartTvCastService {
           'ST: ssdp:all\r\n\r\n';
 
       final data = ssdpSearch.codeUnits;
-      socket.send(data, InternetAddress('239.255.255.250'), 1900);
+      final broadcastAddress = InternetAddress('239.255.255.250');
 
-      final subscription = socket.listen((event) {
+      // Kirim probe awal
+      _ssdpSocket?.send(data, broadcastAddress, 1900);
+
+      _ssdpSubscription = _ssdpSocket?.listen((event) {
         if (event == RawSocketEvent.read) {
-          final datagram = socket.receive();
+          final datagram = _ssdpSocket?.receive();
           if (datagram != null) {
             final response = String.fromCharCodes(datagram.data);
             _parseAndAddDevice(response, datagram.address.address);
@@ -154,16 +214,48 @@ class SmartTvCastService {
         }
       });
 
-      await Future.delayed(timeout);
-      await subscription.cancel();
-      socket.close();
+      // Ulangi pengiriman probe setiap 4 detik selama modal terbuka
+      _ssdpPeriodicTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+        if (!_isScanning) {
+          timer.cancel();
+          return;
+        }
+        try {
+          _ssdpSocket?.send(data, broadcastAddress, 1900);
+        } catch (_) {}
+      });
     } catch (_) {
-      // Jika socket tidak tersedia atau terhalang firewall
+      // Error socket / firewall handling
     }
+  }
 
-    _isScanning = false;
-    _devicesController.add(List.from(_discoveredDevices));
+  /// Memindai perangkat TV di jaringan lokal
+  Future<List<CastDevice>> scanDevices({Duration timeout = const Duration(seconds: 3)}) async {
+    await startContinuousDiscovery();
+    if (isTestMode) {
+      _isScanning = false;
+      return _discoveredDevices;
+    }
+    await Future.delayed(timeout);
     return _discoveredDevices;
+  }
+
+  /// Hentikan proses discovery (Google Cast + SSDP)
+  void stopDiscovery() {
+    _isScanning = false;
+    _ssdpPeriodicTimer?.cancel();
+    _ssdpPeriodicTimer = null;
+    _ssdpSubscription?.cancel();
+    _ssdpSubscription = null;
+    try {
+      _ssdpSocket?.close();
+      _ssdpSocket = null;
+    } catch (_) {}
+
+    if (isTestMode) return;
+    try {
+      GoogleCastDiscoveryManager.instance.stopDiscovery();
+    } catch (_) {}
   }
 
   void _parseAndAddDevice(String response, String ip) {
@@ -185,34 +277,186 @@ class SmartTvCastService {
     }
 
     final id = 'tv_$ip';
+    String? locationUrl;
+    final locationMatch = RegExp(r'LOCATION:\s*(http[^\r\n]+)', caseSensitive: false).firstMatch(response);
+    if (locationMatch != null) {
+      locationUrl = locationMatch.group(1)?.trim();
+    }
+
+    String? dialUrl;
+    final appUrlMatch = RegExp(r'Application-URL:\s*(http[^\r\n]+)', caseSensitive: false).firstMatch(response);
+    if (appUrlMatch != null) {
+      dialUrl = appUrlMatch.group(1)?.trim();
+    }
+
     if (!_discoveredDevices.any((d) => d.id == id)) {
       final device = CastDevice(
         id: id,
         name: name,
         ipAddress: ip,
         type: type,
+        locationUrl: locationUrl,
+        dialUrl: dialUrl,
       );
       _discoveredDevices.add(device);
-      _devicesController.add(List.from(_discoveredDevices));
+      if (!_devicesController.isClosed) {
+        _devicesController.add(List.unmodifiable(_discoveredDevices));
+      }
+
+      if (locationUrl != null && !isTestMode) {
+        _fetchDeviceDetails(id, locationUrl);
+      }
     }
+  }
+
+  Future<void> _fetchDeviceDetails(String id, String locationUrl) async {
+    try {
+      final res = await http.get(Uri.parse(locationUrl)).timeout(const Duration(seconds: 3));
+      if (res.statusCode == 200) {
+        final body = res.body;
+
+        final nameMatch = RegExp(r'<friendlyName>([^<]+)</friendlyName>', caseSensitive: false).firstMatch(body);
+        String? friendlyName;
+        if (nameMatch != null) {
+          friendlyName = nameMatch.group(1)?.trim();
+        }
+
+        String? dialUrl;
+        for (final entry in res.headers.entries) {
+          if (entry.key.toLowerCase() == 'application-url') {
+            dialUrl = entry.value.trim();
+            break;
+          }
+        }
+
+        CastDeviceType? updatedType;
+        final bodyLower = body.toLowerCase();
+        if (bodyLower.contains('samsung')) {
+          updatedType = CastDeviceType.samsung;
+        } else if (bodyLower.contains('lg electronics') || bodyLower.contains('webos')) {
+          updatedType = CastDeviceType.lg;
+        } else if (bodyLower.contains('sony') || bodyLower.contains('bravia')) {
+          updatedType = CastDeviceType.androidTv;
+        }
+
+        String? controlUrl;
+        final serviceBlocks = body.split(RegExp(r'<\s*/?\s*service\s*>', caseSensitive: false));
+        for (final block in serviceBlocks) {
+          if (block.contains('AVTransport')) {
+            final match = RegExp(r'<controlURL>([^<]+)</controlURL>', caseSensitive: false).firstMatch(block);
+            if (match != null) {
+              final path = match.group(1)!.trim();
+              final base = Uri.parse(locationUrl);
+              controlUrl = base.resolve(path).toString();
+              break;
+            }
+          }
+        }
+
+        final index = _discoveredDevices.indexWhere((d) => d.id == id);
+        if (index != -1) {
+          final old = _discoveredDevices[index];
+          _discoveredDevices[index] = old.copyWith(
+            name: friendlyName ?? old.name,
+            controlUrl: controlUrl ?? old.controlUrl,
+            dialUrl: dialUrl ?? old.dialUrl,
+            type: updatedType ?? old.type,
+          );
+          if (!_devicesController.isClosed) {
+            _devicesController.add(List.unmodifiable(_discoveredDevices));
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   /// Menghubungkan ke perangkat TV
   Future<bool> connect(CastDevice device) async {
-    if (!isTestMode && device.type == CastDeviceType.chromecast) {
+    if (isTestMode) {
+      _connectedDevice = device.copyWith(isConnected: true);
+      if (!_connectedDeviceController.isClosed) {
+        _connectedDeviceController.add(_connectedDevice);
+      }
+      return true;
+    }
+
+    // 1. Jika bertipe Chromecast, coba hubungkan sesi Google Cast
+    if (device.type == CastDeviceType.chromecast || device.id.startsWith('chromecast_')) {
       try {
-        final gcDevice = GoogleCastDiscoveryManager.instance.devices.firstWhere(
-          (d) =>
-              'chromecast_${d.deviceID}' == device.id ||
-              d.friendlyName == device.name,
-        );
-        await GoogleCastSessionManager.instance.startSessionWithDevice(gcDevice);
+        final gcDevices = GoogleCastDiscoveryManager.instance.devices;
+        if (gcDevices.isNotEmpty) {
+          final gcDevice = gcDevices.firstWhere(
+            (d) =>
+                'chromecast_${d.deviceID}' == device.id ||
+                d.deviceID == device.id ||
+                d.friendlyName.toLowerCase() == device.name.toLowerCase(),
+            orElse: () => gcDevices.first,
+          );
+          await GoogleCastSessionManager.instance.startSessionWithDevice(gcDevice);
+        }
+      } catch (_) {}
+    } else {
+      // 2. Handshake untuk Smart TV non-Chromecast (Samsung, LG, Sony, Roku, Android TV)
+      try {
+        await _pingAndPrepareTv(device);
       } catch (_) {}
     }
 
     _connectedDevice = device.copyWith(isConnected: true);
-    _connectedDeviceController.add(_connectedDevice);
+    if (!_connectedDeviceController.isClosed) {
+      _connectedDeviceController.add(_connectedDevice);
+    }
     return true;
+  }
+
+  Future<void> _pingAndPrepareTv(CastDevice device) async {
+    final ip = device.ipAddress;
+    if (ip == '127.0.0.1' || ip == 'Chromecast') return;
+
+    final testUrls = [
+      if (device.dialUrl != null) device.dialUrl!,
+      if (device.locationUrl != null) device.locationUrl!,
+      'http://$ip:8080/apps/YouTube',
+      'http://$ip:8008/apps/YouTube',
+      'http://$ip:8001/api/v2/', // Samsung Tizen
+      'http://$ip:8060/',        // Roku ECP
+      'http://$ip:7676/smp_2_',   // Samsung DLNA
+    ];
+
+    for (final testUrl in testUrls) {
+      try {
+        await http.get(Uri.parse(testUrl)).timeout(const Duration(milliseconds: 1500));
+        return;
+      } catch (_) {}
+    }
+  }
+
+  /// Membuka aplikasi YouTube atau membangunkan Smart TV saat terhubung
+  Future<bool> wakeOrLaunchApp(CastDevice device) async {
+    if (isTestMode) return true;
+    final ip = device.ipAddress;
+    if (ip == '127.0.0.1' || ip == 'Chromecast') return true;
+
+    // 1. DIAL wake
+    final dialSuccess = await _launchYouTubeViaDial(
+      ip,
+      '',
+      device.locationUrl,
+      dialUrl: device.dialUrl,
+    );
+    if (dialSuccess) return true;
+
+    // 2. Samsung Tizen wake
+    if (device.type == CastDeviceType.samsung || ip != '127.0.0.1') {
+      final samsungSuccess = await _launchSamsungYouTube(ip, '');
+      if (samsungSuccess) return true;
+    }
+
+    // 3. Roku wake
+    final rokuSuccess = await _launchRokuYouTube(ip, '');
+    if (rokuSuccess) return true;
+
+    return false;
   }
 
   /// Memutuskan koneksi TV
@@ -224,7 +468,9 @@ class SmartTvCastService {
     }
 
     _connectedDevice = null;
-    _connectedDeviceController.add(null);
+    if (!_connectedDeviceController.isClosed) {
+      _connectedDeviceController.add(null);
+    }
   }
 
   /// Menghubungkan menggunakan kode TV (Link with TV Code)
@@ -239,11 +485,13 @@ class SmartTvCastService {
       type: CastDeviceType.generic,
       isConnected: true,
     );
-    _connectedDeviceController.add(_connectedDevice);
+    if (!_connectedDeviceController.isClosed) {
+      _connectedDeviceController.add(_connectedDevice);
+    }
     return true;
   }
 
-  /// Mentransmisikan video ke TV yang terhubung
+  /// Mentransmisikan video ke TV yang terhubung (mendukung Google Cast, DIAL YouTube, Samsung Tizen, Roku, dan DLNA)
   Future<bool> castVideo(
     String videoId, {
     String? title,
@@ -256,38 +504,249 @@ class SmartTvCastService {
       return true;
     }
 
-    try {
-      // 1. Dapatkan direct stream URL MP4/HLS dari YouTube
-      final directStreamUrl = await getDirectStreamUrl(videoId);
-      if (directStreamUrl == null || directStreamUrl.isEmpty) {
-        return false;
-      }
+    final ip = _connectedDevice!.ipAddress;
 
-      // 2. Cast ke Chromecast jika terhubung dengan Google Cast
-      if (_connectedDevice?.type == CastDeviceType.chromecast) {
-        final mediaInfo = GoogleCastMediaInformation(
-          contentId: videoId,
-          streamType: CastMediaStreamType.buffered,
-          contentUrl: Uri.parse(directStreamUrl),
-          contentType: 'video/mp4',
-          metadata: GoogleCastMovieMediaMetadata(
-            title: title ?? 'Karaoke Track',
-            subtitle: artist,
-            images: thumbnailUrl != null
-                ? [GoogleCastImage(url: Uri.parse(thumbnailUrl))]
-                : null,
-          ),
-        );
+    // 1. Google Cast Media Session (jika Chromecast terhubung dan sesi aktif)
+    if (_connectedDevice?.type == CastDeviceType.chromecast ||
+        _connectedDevice?.id.startsWith('chromecast_') == true) {
+      try {
+        final currentSession = GoogleCastSessionManager.instance.currentSession;
+        if (currentSession != null) {
+          final directStreamUrl = await getDirectStreamUrl(videoId);
+          if (directStreamUrl != null && directStreamUrl.isNotEmpty) {
+            final mediaInfo = GoogleCastMediaInformation(
+              contentId: videoId,
+              streamType: CastMediaStreamType.buffered,
+              contentUrl: Uri.parse(directStreamUrl),
+              contentType: 'video/mp4',
+              metadata: GoogleCastMovieMediaMetadata(
+                title: title ?? 'Karaoke Track',
+                subtitle: artist,
+                images: thumbnailUrl != null
+                    ? [GoogleCastImage(url: Uri.parse(thumbnailUrl))]
+                    : null,
+              ),
+            );
 
-        await GoogleCastRemoteMediaClient.instance.loadMedia(mediaInfo);
+            await GoogleCastRemoteMediaClient.instance.loadMedia(mediaInfo);
+            return true;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 2. DIAL Protocol (Discovery and Launch) - Membuka dan memutar YouTube langsung di Smart TV
+    final dialSuccess = await _launchYouTubeViaDial(
+      ip,
+      videoId,
+      _connectedDevice?.locationUrl,
+      dialUrl: _connectedDevice?.dialUrl,
+    );
+    if (dialSuccess) {
+      return true;
+    }
+
+    // 3. Samsung Tizen Smart TV REST API (Port 8001)
+    if (_connectedDevice?.type == CastDeviceType.samsung || ip != '127.0.0.1') {
+      final samsungSuccess = await _launchSamsungYouTube(ip, videoId);
+      if (samsungSuccess) {
         return true;
       }
-
-      // Untuk perangkat TV generic / DIAL protocol
-      return true;
-    } catch (_) {
-      return false;
     }
+
+    // 4. Roku TV External Control Protocol (ECP)
+    final rokuSuccess = await _launchRokuYouTube(ip, videoId);
+    if (rokuSuccess) {
+      return true;
+    }
+
+    // 5. DLNA / UPnP AVTransport Protocol (Universal Media Player di Smart TV)
+    final directStreamUrl = await getDirectStreamUrl(videoId);
+    if (directStreamUrl != null && directStreamUrl.isNotEmpty) {
+      final dlnaSuccess = await _castViaDlna(
+        ip,
+        directStreamUrl,
+        title: title,
+        controlUrl: _connectedDevice?.controlUrl,
+      );
+      if (dlnaSuccess) {
+        return true;
+      }
+    }
+
+    // Jika perangkat tv_code
+    if (_connectedDevice?.id.startsWith('tv_code_') == true) {
+      return true;
+    }
+
+    return dialSuccess;
+  }
+
+  Future<bool> _launchYouTubeViaDial(
+    String ip,
+    String videoId,
+    String? locationUrl, {
+    String? dialUrl,
+  }) async {
+    final candidateUrls = <Uri>[];
+
+    if (dialUrl != null && dialUrl.isNotEmpty) {
+      final cleanDial = dialUrl.endsWith('/') ? dialUrl : '$dialUrl/';
+      candidateUrls.add(Uri.parse('${cleanDial}YouTube'));
+      candidateUrls.add(Uri.parse('${cleanDial}youtube.leanback.v4'));
+      candidateUrls.add(Uri.parse(dialUrl));
+    }
+
+    final ports = <int>[];
+    if (locationUrl != null) {
+      try {
+        final port = Uri.parse(locationUrl).port;
+        if (port > 0 && !ports.contains(port)) ports.add(port);
+      } catch (_) {}
+    }
+    for (final p in [8080, 8008, 1986, 7676, 8060, 52235]) {
+      if (!ports.contains(p)) ports.add(p);
+    }
+
+    for (final port in ports) {
+      candidateUrls.add(Uri.parse('http://$ip:$port/apps/YouTube'));
+      candidateUrls.add(Uri.parse('http://$ip:$port/apps/youtube.leanback.v4'));
+    }
+
+    final bodies = videoId.isNotEmpty
+        ? ['v=$videoId', 'pairing_type=dial&v=$videoId']
+        : [''];
+
+    for (final url in candidateUrls) {
+      for (final body in bodies) {
+        try {
+          final response = await http.post(
+            url,
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: body,
+          ).timeout(const Duration(milliseconds: 1800));
+
+          if (response.statusCode == 201 ||
+              response.statusCode == 200 ||
+              response.statusCode == 202 ||
+              response.statusCode == 204) {
+            return true;
+          }
+        } catch (_) {}
+      }
+    }
+    return false;
+  }
+
+  Future<bool> _launchSamsungYouTube(String ip, String videoId) async {
+    final appIds = ['111299001912', 'org.tizen.youtube', '3201412000624'];
+    for (final appId in appIds) {
+      try {
+        final url = Uri.parse('http://$ip:8001/api/v2/applications/$appId');
+        final body = videoId.isNotEmpty
+            ? jsonEncode({
+                'data': {'v': videoId},
+                'action': 'play',
+              })
+            : '';
+        final response = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: body,
+        ).timeout(const Duration(milliseconds: 1800));
+
+        if (response.statusCode == 200 ||
+            response.statusCode == 201 ||
+            response.statusCode == 202) {
+          return true;
+        }
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  Future<bool> _launchRokuYouTube(String ip, String videoId) async {
+    try {
+      final endpoint = videoId.isNotEmpty
+          ? 'http://$ip:8060/launch/837?contentId=$videoId'
+          : 'http://$ip:8060/launch/837';
+      final res = await http.post(Uri.parse(endpoint)).timeout(const Duration(milliseconds: 1800));
+      if (res.statusCode == 200 || res.statusCode == 204) {
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<bool> _castViaDlna(
+    String ip,
+    String streamUrl, {
+    String? title,
+    String? controlUrl,
+  }) async {
+    final endpoints = <String>[];
+    if (controlUrl != null) endpoints.add(controlUrl);
+    endpoints.addAll([
+      'http://$ip:7676/smp_4_',
+      'http://$ip:8080/upnp/control/AVTransport1',
+      'http://$ip:49152/upnp/control/AVTransport1',
+      'http://$ip:1986/upnp/control/AVTransport1',
+    ]);
+
+    final safeTitle = (title ?? 'Karaoke Track')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+
+    final soapSetUri =
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
+        '<s:Body>'
+        '<u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">'
+        '<InstanceID>0</InstanceID>'
+        '<CurrentURI>$streamUrl</CurrentURI>'
+        '<CurrentURIMetaData>&lt;DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/"&gt;&lt;item id="0" parentID="-1" restricted="1"&gt;&lt;dc:title&gt;$safeTitle&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.videoItem&lt;/upnp:class&gt;&lt;res protocolInfo="http-get:*:video/mp4:*"&gt;$streamUrl&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;</CurrentURIMetaData>'
+        '</u:SetAVTransportURI>'
+        '</s:Body>'
+        '</s:Envelope>';
+
+    final soapPlay =
+        '<?xml version="1.0" encoding="utf-8"?>'
+        '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
+        '<s:Body>'
+        '<u:Play xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">'
+        '<InstanceID>0</InstanceID>'
+        '<Speed>1</Speed>'
+        '</u:Play>'
+        '</s:Body>'
+        '</s:Envelope>';
+
+    for (final endpoint in endpoints) {
+      try {
+        final uri = Uri.parse(endpoint);
+        final resSet = await http.post(
+          uri,
+          headers: {
+            'Content-Type': 'text/xml; charset="utf-8"',
+            'SOAPAction': '"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI"',
+          },
+          body: soapSetUri,
+        ).timeout(const Duration(seconds: 2));
+
+        if (resSet.statusCode == 200) {
+          await http.post(
+            uri,
+            headers: {
+              'Content-Type': 'text/xml; charset="utf-8"',
+              'SOAPAction': '"urn:schemas-upnp-org:service:AVTransport:1#Play"',
+            },
+            body: soapPlay,
+          ).timeout(const Duration(seconds: 2));
+          return true;
+        }
+      } catch (_) {}
+    }
+    return false;
   }
 
   /// Kontrol playback TV: Play
