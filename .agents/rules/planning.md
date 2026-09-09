@@ -8,3 +8,6 @@ Setiap kali menerima prompt atau instruksi baru dari pengguna:
    - Langkah demi langkah implementasi teknis.
    - Strategi pengujian atau verifikasi hasil.
 3. Tampilkan planning dengan jelas sebelum melanjutkan ke tahap eksekusi.
+
+## Pengecualian
+- **Perintah Commit Langsung**: Jika pengguna menginstruksikan untuk membuat commit (`git commit`), agen **TIDAK PERLU** membuat planning terlebih dahulu dan langsung mengeksekusi pembuatan commit secara langsung.
