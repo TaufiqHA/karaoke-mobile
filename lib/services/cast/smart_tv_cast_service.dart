@@ -23,6 +23,14 @@ class SmartTvCastService {
   StreamSubscription? _googleCastDevicesSubscription;
   StreamSubscription? _googleCastSessionSubscription;
 
+  // YouTube Lounge API state untuk TV Code
+  String? _loungeScreenId;
+  String? _loungeToken;
+  String? _loungeSid;
+  String? _loungeGsession;
+  int _loungeCommandOffset = 1;
+  int _loungeLastEventId = 0;
+
   SmartTvCastService({this.isTestMode = false, this.initialDevices}) {
     if (!isTestMode) {
       _initGoogleCast();
@@ -467,28 +475,220 @@ class SmartTvCastService {
       } catch (_) {}
     }
 
+    if (!isTestMode &&
+        (_connectedDevice?.id.startsWith('tv_code_') == true ||
+            _loungeScreenId != null)) {
+      await _terminateLoungeSession();
+    }
+
     _connectedDevice = null;
     if (!_connectedDeviceController.isClosed) {
       _connectedDeviceController.add(null);
     }
   }
 
-  /// Menghubungkan menggunakan kode TV (Link with TV Code)
+  /// Menghubungkan menggunakan kode TV (Link with TV Code / YouTube Lounge API)
   Future<bool> connectWithTvCode(String code) async {
-    final cleanCode = code.trim();
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) return false;
+
+    if (isTestMode) {
+      _connectedDevice = CastDevice(
+        id: 'tv_code_${trimmed.hashCode}',
+        name: 'TV ($trimmed)',
+        ipAddress: '127.0.0.1',
+        type: CastDeviceType.generic,
+        isConnected: true,
+      );
+      if (!_connectedDeviceController.isClosed) {
+        _connectedDeviceController.add(_connectedDevice);
+      }
+      return true;
+    }
+
+    final cleanCode = code.replaceAll(RegExp(r'[\s-]'), '').trim();
     if (cleanCode.isEmpty) return false;
 
-    _connectedDevice = CastDevice(
-      id: 'tv_code_${cleanCode.hashCode}',
-      name: 'TV ($cleanCode)',
-      ipAddress: '127.0.0.1',
-      type: CastDeviceType.generic,
-      isConnected: true,
-    );
-    if (!_connectedDeviceController.isClosed) {
-      _connectedDeviceController.add(_connectedDevice);
+    try {
+      final pairUrl = Uri.parse('https://www.youtube.com/api/lounge/pairing/get_screen');
+      final pairResponse = await http.post(
+        pairUrl,
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {'pairing_code': cleanCode},
+      ).timeout(const Duration(seconds: 8));
+
+      if (pairResponse.statusCode == 200) {
+        final data = jsonDecode(pairResponse.body);
+        if (data is Map<String, dynamic> && data['screen'] != null) {
+          final screen = data['screen'];
+          _loungeScreenId = screen['screenId']?.toString();
+          _loungeToken = screen['loungeToken']?.toString();
+          final screenName = screen['name']?.toString() ?? 'YouTube TV';
+
+          // Buka sesi bind untuk mendapatkan SID & gsessionid
+          await _initLoungeSession();
+
+          _connectedDevice = CastDevice(
+            id: 'tv_code_${_loungeScreenId ?? cleanCode}',
+            name: screenName,
+            ipAddress: 'YouTube Lounge',
+            type: CastDeviceType.generic,
+            isConnected: true,
+          );
+
+          if (!_connectedDeviceController.isClosed) {
+            _connectedDeviceController.add(_connectedDevice);
+          }
+          return true;
+        }
+      }
+    } catch (_) {}
+
+    return false;
+  }
+
+  Future<bool> _initLoungeSession() async {
+    if (_loungeScreenId == null || _loungeToken == null) return false;
+    try {
+      const bindUrl =
+          'https://www.youtube.com/api/lounge/bc/bind?RID=1&VER=8&CVER=1&auth_failure_option=send_error';
+      final body = {
+        'app': 'web',
+        'mdx-version': '3',
+        'name': 'Karaoke Mobile App',
+        'id': _loungeScreenId!,
+        'device': 'REMOTE_CONTROL',
+        'capabilities': 'que,dsdtr,atp,vsp',
+        'magnaKey': 'cloudPairedDevice',
+        'ui': 'false',
+        'deviceContext':
+            'user_agent=dunno&window_width_points=&window_height_points=&os_name=android&ms=',
+        'theme': 'cl',
+        'loungeIdToken': _loungeToken!,
+      };
+
+      final res = await http.post(
+        Uri.parse(bindUrl),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: body,
+      ).timeout(const Duration(seconds: 5));
+
+      if (res.statusCode == 200) {
+        final bodyText = res.body;
+        final sidMatch = RegExp(r'\["c","([^"]*)"').firstMatch(bodyText);
+        final gsMatch = RegExp(r'\["S","([^"]*)"').firstMatch(bodyText);
+        if (sidMatch != null) {
+          _loungeSid = sidMatch.group(1);
+        }
+        if (gsMatch != null) {
+          _loungeGsession = gsMatch.group(1);
+        }
+        _loungeCommandOffset = 1;
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<bool> _sendLoungeCommand(String command, Map<String, String> params) async {
+    if (isTestMode) return true;
+    if (_loungeScreenId == null || _loungeToken == null) return false;
+
+    if (_loungeSid == null || _loungeGsession == null) {
+      final inited = await _initLoungeSession();
+      if (!inited) return false;
     }
-    return true;
+
+    final offset = _loungeCommandOffset++;
+    final rid = offset + 1;
+
+    final queryParams = {
+      'SID': _loungeSid ?? '',
+      'gsessionid': _loungeGsession ?? '',
+      'RID': rid.toString(),
+      'VER': '8',
+      'v': '2',
+      'TYPE': 'bind',
+      't': '1',
+      'AID': _loungeLastEventId.toString(),
+      'CI': '0',
+      'name': 'Karaoke Mobile App',
+      'id': _loungeScreenId ?? '',
+      'device': 'REMOTE_CONTROL',
+      'loungeIdToken': _loungeToken ?? '',
+    };
+
+    final formBody = <String, String>{
+      'count': '1',
+      'ofs': offset.toString(),
+      'req0__sc': command,
+    };
+    params.forEach((key, val) {
+      formBody['req0_$key'] = val;
+    });
+
+    final uri = Uri.parse('https://www.youtube.com/api/lounge/bc/bind').replace(
+      queryParameters: queryParams,
+    );
+
+    try {
+      final res = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: formBody,
+      ).timeout(const Duration(seconds: 5));
+
+      if (res.statusCode == 200) {
+        return true;
+      } else if (res.statusCode == 401 || res.statusCode == 400) {
+        _loungeSid = null;
+        _loungeGsession = null;
+        final reconnected = await _initLoungeSession();
+        if (reconnected) {
+          return _sendLoungeCommand(command, params);
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<void> _terminateLoungeSession() async {
+    try {
+      if (_loungeSid != null && _loungeGsession != null && _loungeScreenId != null) {
+        final queryParams = {
+          'SID': _loungeSid ?? '',
+          'gsessionid': _loungeGsession ?? '',
+          'RID': (_loungeCommandOffset++).toString(),
+          'VER': '8',
+          'v': '2',
+          'TYPE': 'terminate',
+          'CVER': '1',
+          'auth_failure_option': 'send_error',
+          'name': 'Karaoke Mobile App',
+          'id': _loungeScreenId ?? '',
+          'device': 'REMOTE_CONTROL',
+          'loungeIdToken': _loungeToken ?? '',
+        };
+        final uri = Uri.parse('https://www.youtube.com/api/lounge/bc/bind').replace(
+          queryParameters: queryParams,
+        );
+        await http.post(
+          uri,
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: {
+            'ui': '',
+            'TYPE': 'terminate',
+            'clientDisconnectReason':
+                'MDX_SESSION_DISCONNECT_REASON_DISCONNECTED_BY_USER',
+          },
+        ).timeout(const Duration(seconds: 2));
+      }
+    } catch (_) {}
+    _loungeScreenId = null;
+    _loungeToken = null;
+    _loungeSid = null;
+    _loungeGsession = null;
+    _loungeCommandOffset = 1;
   }
 
   /// Mentransmisikan video ke TV yang terhubung (mendukung Google Cast, DIAL YouTube, Samsung Tizen, Roku, dan DLNA)
@@ -502,6 +702,17 @@ class SmartTvCastService {
 
     if (isTestMode) {
       return true;
+    }
+
+    // 0. YouTube Lounge API (jika terhubung via YouTube TV Code)
+    if (_connectedDevice?.id.startsWith('tv_code_') == true ||
+        _loungeScreenId != null) {
+      return await _sendLoungeCommand('setPlaylist', {
+        'videoId': videoId,
+        'currentTime': '0',
+        'currentIndex': '-1',
+        'audioOnly': 'false',
+      });
     }
 
     final ip = _connectedDevice!.ipAddress;
@@ -572,11 +783,6 @@ class SmartTvCastService {
       if (dlnaSuccess) {
         return true;
       }
-    }
-
-    // Jika perangkat tv_code
-    if (_connectedDevice?.id.startsWith('tv_code_') == true) {
-      return true;
     }
 
     return dialSuccess;
@@ -752,6 +958,11 @@ class SmartTvCastService {
   /// Kontrol playback TV: Play
   Future<void> play() async {
     if (isTestMode) return;
+    if (_connectedDevice?.id.startsWith('tv_code_') == true ||
+        _loungeScreenId != null) {
+      await _sendLoungeCommand('play', {});
+      return;
+    }
     try {
       await GoogleCastRemoteMediaClient.instance.play();
     } catch (_) {}
@@ -760,6 +971,11 @@ class SmartTvCastService {
   /// Kontrol playback TV: Pause
   Future<void> pause() async {
     if (isTestMode) return;
+    if (_connectedDevice?.id.startsWith('tv_code_') == true ||
+        _loungeScreenId != null) {
+      await _sendLoungeCommand('pause', {});
+      return;
+    }
     try {
       await GoogleCastRemoteMediaClient.instance.pause();
     } catch (_) {}
@@ -768,6 +984,12 @@ class SmartTvCastService {
   /// Kontrol playback TV: Seek
   Future<void> seek(Duration position) async {
     if (isTestMode) return;
+    if (_connectedDevice?.id.startsWith('tv_code_') == true ||
+        _loungeScreenId != null) {
+      await _sendLoungeCommand(
+          'seekTo', {'newTime': position.inSeconds.toString()});
+      return;
+    }
     try {
       await GoogleCastRemoteMediaClient.instance.seek(
         GoogleCastMediaSeekOption(position: position),

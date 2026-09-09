@@ -203,8 +203,34 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
 
     try {
       final success = await widget.castService.connectWithTvCode(code);
+      if (!success) {
+        if (mounted && !widget.castService.isTestMode) {
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Kode TV ($code) tidak valid atau telah kedaluwarsa. Silakan periksa kembali di TV Anda.',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFFEF4444),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
+      bool castOk = true;
       if (widget.currentVideoId != null) {
-        await widget.castService.castVideo(
+        castOk = await widget.castService.castVideo(
           widget.currentVideoId!,
           title: widget.songTitle,
           artist: widget.songSinger,
@@ -214,7 +240,7 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
       widget.onDeviceChanged?.call();
       if (mounted) {
         Navigator.of(context).pop();
-        if (success && !widget.castService.isTestMode) {
+        if (!widget.castService.isTestMode) {
           scaffoldMessenger.showSnackBar(
             SnackBar(
               content: Row(
@@ -223,7 +249,9 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Terhubung dengan Kode TV ($code).',
+                      widget.currentVideoId != null && castOk
+                          ? 'Terhubung dengan Kode TV ($code). Video sedang diputar di TV.'
+                          : 'Terhubung dengan Kode TV ($code).',
                       style: const TextStyle(fontSize: 13),
                     ),
                   ),
@@ -235,6 +263,28 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
             ),
           );
         }
+      }
+    } catch (_) {
+      if (mounted && !widget.castService.isTestMode) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Gagal menghubungkan ke TV ($code). Pastikan koneksi internet aktif.',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     } finally {
       if (mounted) {

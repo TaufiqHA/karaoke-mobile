@@ -446,9 +446,9 @@ void main() {
     await tester.tap(castBtn);
     await tester.pumpAndSettle();
 
-    // Verifikasi modal terbuka dan menampilkan 'Sedang mencari Smart TV...'
+    // Verifikasi modal terbuka dan menampilkan pencarian Smart TV
     expect(find.text('Cast ke TV'), findsOneWidget);
-    expect(find.text('Sedang mencari Smart TV...'), findsOneWidget);
+    expect(find.text('Mencari Smart TV di jaringan Wi-Fi...'), findsOneWidget);
     expect(find.text('Samsung Smart TV'), findsNothing);
     expect(find.text('Chromecast'), findsNothing);
 
