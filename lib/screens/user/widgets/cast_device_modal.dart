@@ -213,7 +213,7 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Kode TV ($code) tidak valid atau telah kedaluwarsa. Silakan periksa kembali di TV Anda.',
+                      'Kode TV ($code) tidak valid, telah kedaluwarsa, atau sesi TV gagal dibuat. Silakan periksa kode di aplikasi YouTube TV Anda.',
                       style: const TextStyle(fontSize: 13),
                     ),
                   ),
@@ -245,19 +245,25 @@ class _CastDeviceModalState extends State<CastDeviceModal> {
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
+                  Icon(
+                    castOk ? Icons.check_circle_outline_rounded : Icons.warning_amber_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      widget.currentVideoId != null && castOk
-                          ? 'Terhubung dengan Kode TV ($code). Video sedang diputar di TV.'
-                          : 'Terhubung dengan Kode TV ($code).',
+                      widget.currentVideoId != null
+                          ? (castOk
+                              ? 'Terhubung dengan Kode TV ($code). Video sedang diputar di TV.'
+                              : 'Terhubung ke TV ($code), namun video belum dapat diputar. Silakan putar ulang lagu.')
+                          : 'Terhubung dengan Kode TV ($code). Putar lagu untuk bernyanyi di TV.',
                       style: const TextStyle(fontSize: 13),
                     ),
                   ),
                 ],
               ),
-              backgroundColor: const Color(0xFF10B981),
+              backgroundColor: castOk ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 4),
             ),

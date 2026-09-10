@@ -29,7 +29,7 @@ class SmartTvCastService {
   String? _loungeSid;
   String? _loungeGsession;
   int _loungeCommandOffset = 1;
-  int _loungeLastEventId = 0;
+  final int _loungeLastEventId = 0;
 
   SmartTvCastService({this.isTestMode = false, this.initialDevices}) {
     if (!isTestMode) {
@@ -526,7 +526,12 @@ class SmartTvCastService {
           final screenName = screen['name']?.toString() ?? 'YouTube TV';
 
           // Buka sesi bind untuk mendapatkan SID & gsessionid
-          await _initLoungeSession();
+          final sessionOk = await _initLoungeSession();
+          if (!sessionOk) {
+            _loungeScreenId = null;
+            _loungeToken = null;
+            return false;
+          }
 
           _connectedDevice = CastDevice(
             id: 'tv_code_${_loungeScreenId ?? cleanCode}',
@@ -549,11 +554,20 @@ class SmartTvCastService {
 
   Future<bool> _initLoungeSession() async {
     if (_loungeScreenId == null || _loungeToken == null) return false;
+    final commonHeaders = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Origin': 'https://www.youtube.com',
+      'X-YouTube-LoungeId-Token': _loungeToken!,
+      'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    };
+
+    // Percobaan 1: Format bind standar pyytlounge
     try {
       const bindUrl =
           'https://www.youtube.com/api/lounge/bc/bind?RID=1&VER=8&CVER=1&auth_failure_option=send_error';
       final body = {
-        'app': 'web',
+        'app': 'youtube-desktop',
         'mdx-version': '3',
         'name': 'Karaoke Mobile App',
         'id': _loungeScreenId!,
@@ -569,24 +583,57 @@ class SmartTvCastService {
 
       final res = await http.post(
         Uri.parse(bindUrl),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        headers: commonHeaders,
         body: body,
       ).timeout(const Duration(seconds: 5));
 
       if (res.statusCode == 200) {
         final bodyText = res.body;
-        final sidMatch = RegExp(r'\["c","([^"]*)"').firstMatch(bodyText);
-        final gsMatch = RegExp(r'\["S","([^"]*)"').firstMatch(bodyText);
-        if (sidMatch != null) {
+        final sidMatch = RegExp(r'\[\s*"c"\s*,\s*"([^"]+)"').firstMatch(bodyText);
+        final gsMatch = RegExp(r'\[\s*"S"\s*,\s*"([^"]+)"').firstMatch(bodyText);
+        if (sidMatch != null && gsMatch != null) {
           _loungeSid = sidMatch.group(1);
-        }
-        if (gsMatch != null) {
           _loungeGsession = gsMatch.group(1);
+          _loungeCommandOffset = 1;
+          return true;
         }
-        _loungeCommandOffset = 1;
-        return true;
       }
     } catch (_) {}
+
+    // Percobaan 2 (Fallback): Format bind query-parameters
+    try {
+      final queryParams = {
+        'CVER': '1',
+        'RID': '1',
+        'VER': '8',
+        'app': 'youtube-desktop',
+        'device': 'REMOTE_CONTROL',
+        'id': 'remote',
+        'loungeIdToken': _loungeToken!,
+        'name': 'Karaoke Mobile App',
+      };
+      final uri = Uri.parse('https://www.youtube.com/api/lounge/bc/bind').replace(
+        queryParameters: queryParams,
+      );
+
+      final fallbackRes = await http.post(
+        uri,
+        headers: commonHeaders,
+      ).timeout(const Duration(seconds: 5));
+
+      if (fallbackRes.statusCode == 200) {
+        final bodyText = fallbackRes.body;
+        final sidMatch = RegExp(r'\[\s*"c"\s*,\s*"([^"]+)"').firstMatch(bodyText);
+        final gsMatch = RegExp(r'\[\s*"S"\s*,\s*"([^"]+)"').firstMatch(bodyText);
+        if (sidMatch != null && gsMatch != null) {
+          _loungeSid = sidMatch.group(1);
+          _loungeGsession = gsMatch.group(1);
+          _loungeCommandOffset = 1;
+          return true;
+        }
+      }
+    } catch (_) {}
+
     return false;
   }
 
@@ -600,22 +647,18 @@ class SmartTvCastService {
     }
 
     final offset = _loungeCommandOffset++;
-    final rid = offset + 1;
 
     final queryParams = {
+      'name': 'Karaoke Mobile App',
+      'loungeIdToken': _loungeToken ?? '',
       'SID': _loungeSid ?? '',
+      'AID': _loungeLastEventId.toString(),
       'gsessionid': _loungeGsession ?? '',
-      'RID': rid.toString(),
+      'device': 'REMOTE_CONTROL',
+      'app': 'youtube-desktop',
       'VER': '8',
       'v': '2',
-      'TYPE': 'bind',
-      't': '1',
-      'AID': _loungeLastEventId.toString(),
-      'CI': '0',
-      'name': 'Karaoke Mobile App',
-      'id': _loungeScreenId ?? '',
-      'device': 'REMOTE_CONTROL',
-      'loungeIdToken': _loungeToken ?? '',
+      'RID': offset.toString(),
     };
 
     final formBody = <String, String>{
@@ -634,18 +677,27 @@ class SmartTvCastService {
     try {
       final res = await http.post(
         uri,
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Origin': 'https://www.youtube.com',
+          'X-YouTube-LoungeId-Token': _loungeToken ?? '',
+          'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
         body: formBody,
       ).timeout(const Duration(seconds: 5));
 
       if (res.statusCode == 200) {
         return true;
-      } else if (res.statusCode == 401 || res.statusCode == 400) {
+      } else if (res.statusCode == 401 ||
+          res.statusCode == 400 ||
+          res.statusCode == 404 ||
+          res.statusCode == 410) {
         _loungeSid = null;
         _loungeGsession = null;
         final reconnected = await _initLoungeSession();
         if (reconnected) {
-          return _sendLoungeCommand(command, params);
+          return await _sendLoungeCommand(command, params);
         }
       }
     } catch (_) {}
@@ -661,11 +713,9 @@ class SmartTvCastService {
           'RID': (_loungeCommandOffset++).toString(),
           'VER': '8',
           'v': '2',
-          'TYPE': 'terminate',
           'CVER': '1',
-          'auth_failure_option': 'send_error',
           'name': 'Karaoke Mobile App',
-          'id': _loungeScreenId ?? '',
+          'app': 'youtube-desktop',
           'device': 'REMOTE_CONTROL',
           'loungeIdToken': _loungeToken ?? '',
         };
@@ -674,7 +724,11 @@ class SmartTvCastService {
         );
         await http.post(
           uri,
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Origin': 'https://www.youtube.com',
+            'X-YouTube-LoungeId-Token': _loungeToken ?? '',
+          },
           body: {
             'ui': '',
             'TYPE': 'terminate',
@@ -707,11 +761,20 @@ class SmartTvCastService {
     // 0. YouTube Lounge API (jika terhubung via YouTube TV Code)
     if (_connectedDevice?.id.startsWith('tv_code_') == true ||
         _loungeScreenId != null) {
-      return await _sendLoungeCommand('setPlaylist', {
+      final playlistSuccess = await _sendLoungeCommand('setPlaylist', {
+        'videoId': videoId,
+        'videoIds': videoId,
+        'currentTime': '0',
+        'currentIndex': '0',
+        'audioOnly': 'false',
+      });
+      if (playlistSuccess) return true;
+
+      // Fallback jika TV lounge memerlukan antrean addVideo + setVideo
+      await _sendLoungeCommand('addVideo', {'videoId': videoId});
+      return await _sendLoungeCommand('setVideo', {
         'videoId': videoId,
         'currentTime': '0',
-        'currentIndex': '-1',
-        'audioOnly': 'false',
       });
     }
 

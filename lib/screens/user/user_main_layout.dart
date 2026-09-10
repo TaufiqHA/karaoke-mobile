@@ -57,7 +57,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
   Duration _totalDuration = const Duration(minutes: 3, seconds: 30);
   Timer? _playbackTimer;
 
-  // Audio Settings
+  // Audio & Display Settings
   double _volume = 0.8;
   bool _isMuted = false;
   bool _isFullscreen = false;
@@ -98,11 +98,14 @@ class _UserMainLayoutState extends State<UserMainLayout> {
         videoId: videoId,
         autoPlay: true,
         params: const YoutubePlayerParams(
-          showControls: false,
-          showFullscreenButton: false,
+          showControls: true,
+          showFullscreenButton: true,
           showVideoAnnotations: false,
           pointerEvents: PointerEvents.auto,
           mute: false,
+          enableCaption: true,
+          captionLanguage: 'id',
+          interfaceLanguage: 'id',
         ),
       );
 
@@ -456,6 +459,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
       }
     } catch (_) {}
   }
+
 
   void _addToQueue(SongModel song) {
     setState(() {

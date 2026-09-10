@@ -377,6 +377,7 @@ class _PlayerControlsState extends State<PlayerControls> {
                       color: AppColors.textMuted,
                     ),
                   ),
+
                   if (widget.onCastTapped != null) ...[
                     const SizedBox(width: 2),
                     IconButton(
@@ -566,16 +567,6 @@ class _PlayerControlsState extends State<PlayerControls> {
                 ),
               ),
             ),
-            if (widget.onCastTapped != null)
-              IconButton(
-                onPressed: widget.onCastTapped,
-                visualDensity: VisualDensity.compact,
-                icon: Icon(
-                  widget.isCasting ? Icons.cast_connected_rounded : Icons.cast_rounded,
-                  color: widget.isCasting ? AppColors.accentCyan : AppColors.accentSky,
-                  size: 20,
-                ),
-              ),
             if (widget.onNext != null)
               IconButton(
                 onPressed: hasSong ? widget.onNext : null,
@@ -585,6 +576,16 @@ class _PlayerControlsState extends State<PlayerControls> {
                   Icons.skip_next_rounded,
                   color: hasSong ? Colors.white : AppColors.textMuted,
                   size: 22,
+                ),
+              ),
+            if (widget.onCastTapped != null)
+              IconButton(
+                onPressed: widget.onCastTapped,
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  widget.isCasting ? Icons.cast_connected_rounded : Icons.cast_rounded,
+                  color: widget.isCasting ? AppColors.accentCyan : AppColors.accentSky,
+                  size: 20,
                 ),
               ),
             if (widget.onToggleFullscreen != null)
