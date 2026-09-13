@@ -138,7 +138,7 @@ class AdminSidebar extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Karaoke App',
+                        'Tomsi Karaoke',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,

@@ -36,6 +36,7 @@ class YoutubeVideoPlayerWidget extends StatelessWidget {
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.hardEdge,
       child: Container(
         color: Colors.black,
         child: AspectRatio(

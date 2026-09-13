@@ -78,7 +78,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 1. Verifikasi Header (Minimalis tanpa subteks & tanpa tombol cari)
-    expect(find.text('Karaoke App'), findsOneWidget);
+    expect(find.text('Tomsi Karaoke'), findsOneWidget);
     expect(find.text('Ruang Bernyanyi'), findsNothing);
     expect(find.byTooltip('Cari Lagu'), findsNothing);
     expect(find.byTooltip('Manajemen Profil'), findsOneWidget);

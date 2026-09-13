@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/song_model.dart';
@@ -11,6 +12,7 @@ class PlayerControls extends StatefulWidget {
   final bool isPlaying;
   final bool hasSong;
   final Duration currentPosition;
+  final ValueListenable<Duration>? currentPositionListenable;
   final Duration totalDuration;
   final ValueChanged<Duration>? onSeek;
   final VoidCallback? onTogglePlayPause;
@@ -31,7 +33,8 @@ class PlayerControls extends StatefulWidget {
     this.song,
     required this.isPlaying,
     required this.hasSong,
-    required this.currentPosition,
+    this.currentPosition = Duration.zero,
+    this.currentPositionListenable,
     required this.totalDuration,
     this.onSeek,
     this.onTogglePlayPause,
@@ -67,12 +70,6 @@ class _PlayerControlsState extends State<PlayerControls> {
     final double maxSeconds = widget.totalDuration.inSeconds > 0
         ? widget.totalDuration.inSeconds.toDouble()
         : 1.0;
-    final double currentSeconds = widget.currentPosition.inSeconds
-        .clamp(0, maxSeconds.toInt())
-        .toDouble();
-    final double sliderValue = _isDragging
-        ? _dragPosition.clamp(0.0, maxSeconds)
-        : (widget.hasSong ? currentSeconds : 0.0).clamp(0.0, maxSeconds);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -92,8 +89,8 @@ class _PlayerControlsState extends State<PlayerControls> {
             ),
           ),
           child: isNarrow
-              ? _buildMobileLayout(context, sliderValue, maxSeconds)
-              : _buildDesktopLayout(context, sliderValue, maxSeconds),
+              ? _buildMobileLayout(context, maxSeconds)
+              : _buildDesktopLayout(context, maxSeconds),
         );
       },
     );
@@ -102,7 +99,6 @@ class _PlayerControlsState extends State<PlayerControls> {
   /// Layout Desktop: 3 Kolom Seimbang (Kiri: Info Lagu, Tengah: Playback + Seekbar, Kanan: Volume + Fullscreen)
   Widget _buildDesktopLayout(
     BuildContext context,
-    double sliderValue,
     double maxSeconds,
   ) {
     final song = widget.song;
@@ -242,79 +238,7 @@ class _PlayerControlsState extends State<PlayerControls> {
               ),
 
               // Seekbar Row with Timers
-              Row(
-                children: [
-                  SizedBox(
-                    width: 36,
-                    child: Text(
-                      _formatDuration(
-                        _isDragging
-                            ? Duration(seconds: _dragPosition.toInt())
-                            : widget.currentPosition,
-                      ),
-                      textAlign: TextAlign.left,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.accentLight,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        trackHeight: 3,
-                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4.5),
-                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 8),
-                        activeTrackColor: hasSong ? AppColors.accentCyan : AppColors.textMuted,
-                        inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
-                        thumbColor: hasSong ? Colors.white : AppColors.textMuted,
-                        overlayColor: AppColors.accentCyan.withValues(alpha: 0.2),
-                      ),
-                      child: Slider(
-                        value: sliderValue,
-                        min: 0.0,
-                        max: hasSong ? maxSeconds : 1.0,
-                        onChangeStart: hasSong
-                            ? (val) {
-                                setState(() {
-                                  _isDragging = true;
-                                  _dragPosition = val;
-                                });
-                              }
-                            : null,
-                        onChanged: hasSong
-                            ? (val) {
-                                setState(() {
-                                  _dragPosition = val;
-                                });
-                              }
-                            : null,
-                        onChangeEnd: hasSong
-                            ? (val) {
-                                setState(() {
-                                  _isDragging = false;
-                                });
-                                widget.onSeek?.call(Duration(seconds: val.toInt()));
-                              }
-                            : null,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 36,
-                    child: Text(
-                      _formatDuration(widget.totalDuration),
-                      textAlign: TextAlign.right,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              _buildDesktopSeekbar(context, maxSeconds, hasSong),
             ],
           ),
         ),
@@ -420,7 +344,6 @@ class _PlayerControlsState extends State<PlayerControls> {
   /// Layout Mobile: Vertikal Teratur & Sangat Kompak
   Widget _buildMobileLayout(
     BuildContext context,
-    double sliderValue,
     double maxSeconds,
   ) {
     final song = widget.song;
@@ -480,62 +403,7 @@ class _PlayerControlsState extends State<PlayerControls> {
         ),
 
         // 2. Seekbar
-        Row(
-          children: [
-            Text(
-              _formatDuration(
-                _isDragging
-                    ? Duration(seconds: _dragPosition.toInt())
-                    : widget.currentPosition,
-              ),
-              style: const TextStyle(fontSize: 10, color: AppColors.accentLight),
-            ),
-            Expanded(
-              child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  trackHeight: 2,
-                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
-                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 6),
-                  activeTrackColor: AppColors.accentCyan,
-                  inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
-                  thumbColor: Colors.white,
-                ),
-                child: Slider(
-                  value: sliderValue,
-                  min: 0.0,
-                  max: hasSong ? maxSeconds : 1.0,
-                  onChangeStart: hasSong
-                      ? (val) {
-                          setState(() {
-                            _isDragging = true;
-                            _dragPosition = val;
-                          });
-                        }
-                      : null,
-                  onChanged: hasSong
-                      ? (val) {
-                          setState(() {
-                            _dragPosition = val;
-                          });
-                        }
-                      : null,
-                  onChangeEnd: hasSong
-                      ? (val) {
-                          setState(() {
-                            _isDragging = false;
-                          });
-                          widget.onSeek?.call(Duration(seconds: val.toInt()));
-                        }
-                      : null,
-                ),
-              ),
-            ),
-            Text(
-              _formatDuration(widget.totalDuration),
-              style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
-            ),
-          ],
-        ),
+        _buildMobileSeekbar(context, maxSeconds, hasSong),
 
         // 3. Playback Navigation Buttons
         Row(
@@ -602,5 +470,170 @@ class _PlayerControlsState extends State<PlayerControls> {
         ),
       ],
     );
+  }
+
+  Widget _buildDesktopSeekbar(BuildContext context, double maxSeconds, bool hasSong) {
+    Widget buildRow(Duration currentPos) {
+      final double currentSeconds = currentPos.inSeconds.clamp(0, maxSeconds.toInt()).toDouble();
+      final double sliderValue = _isDragging
+          ? _dragPosition.clamp(0.0, maxSeconds)
+          : (hasSong ? currentSeconds : 0.0).clamp(0.0, maxSeconds);
+
+      return Row(
+        children: [
+          SizedBox(
+            width: 36,
+            child: Text(
+              _formatDuration(
+                _isDragging
+                    ? Duration(seconds: _dragPosition.toInt())
+                    : currentPos,
+              ),
+              textAlign: TextAlign.left,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppColors.accentLight,
+              ),
+            ),
+          ),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 3,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4.5),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 8),
+                activeTrackColor: hasSong ? AppColors.accentCyan : AppColors.textMuted,
+                inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
+                thumbColor: hasSong ? Colors.white : AppColors.textMuted,
+                overlayColor: AppColors.accentCyan.withValues(alpha: 0.2),
+              ),
+              child: Slider(
+                value: sliderValue,
+                min: 0.0,
+                max: hasSong ? maxSeconds : 1.0,
+                onChangeStart: hasSong
+                    ? (val) {
+                        setState(() {
+                          _isDragging = true;
+                          _dragPosition = val;
+                        });
+                      }
+                    : null,
+                onChanged: hasSong
+                    ? (val) {
+                        setState(() {
+                          _dragPosition = val;
+                        });
+                      }
+                    : null,
+                onChangeEnd: hasSong
+                    ? (val) {
+                        setState(() {
+                          _isDragging = false;
+                        });
+                        widget.onSeek?.call(Duration(seconds: val.toInt()));
+                      }
+                    : null,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 36,
+            child: Text(
+              _formatDuration(widget.totalDuration),
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textMuted,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (widget.currentPositionListenable != null) {
+      return ValueListenableBuilder<Duration>(
+        valueListenable: widget.currentPositionListenable!,
+        builder: (context, currentPos, _) => buildRow(currentPos),
+      );
+    }
+    return buildRow(widget.currentPosition);
+  }
+
+  Widget _buildMobileSeekbar(BuildContext context, double maxSeconds, bool hasSong) {
+    Widget buildRow(Duration currentPos) {
+      final double currentSeconds = currentPos.inSeconds.clamp(0, maxSeconds.toInt()).toDouble();
+      final double sliderValue = _isDragging
+          ? _dragPosition.clamp(0.0, maxSeconds)
+          : (hasSong ? currentSeconds : 0.0).clamp(0.0, maxSeconds);
+
+      return Row(
+        children: [
+          Text(
+            _formatDuration(
+              _isDragging
+                  ? Duration(seconds: _dragPosition.toInt())
+                  : currentPos,
+            ),
+            style: const TextStyle(fontSize: 10, color: AppColors.accentLight),
+          ),
+          Expanded(
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 2,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 4),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 6),
+                activeTrackColor: AppColors.accentCyan,
+                inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
+                thumbColor: Colors.white,
+              ),
+              child: Slider(
+                value: sliderValue,
+                min: 0.0,
+                max: hasSong ? maxSeconds : 1.0,
+                onChangeStart: hasSong
+                    ? (val) {
+                        setState(() {
+                          _isDragging = true;
+                          _dragPosition = val;
+                        });
+                      }
+                    : null,
+                onChanged: hasSong
+                    ? (val) {
+                        setState(() {
+                          _dragPosition = val;
+                        });
+                      }
+                    : null,
+                onChangeEnd: hasSong
+                    ? (val) {
+                        setState(() {
+                          _isDragging = false;
+                        });
+                        widget.onSeek?.call(Duration(seconds: val.toInt()));
+                      }
+                    : null,
+              ),
+            ),
+          ),
+          Text(
+            _formatDuration(widget.totalDuration),
+            style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+          ),
+        ],
+      );
+    }
+
+    if (widget.currentPositionListenable != null) {
+      return ValueListenableBuilder<Duration>(
+        valueListenable: widget.currentPositionListenable!,
+        builder: (context, currentPos, _) => buildRow(currentPos),
+      );
+    }
+    return buildRow(widget.currentPosition);
   }
 }

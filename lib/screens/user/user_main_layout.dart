@@ -54,8 +54,14 @@ class _UserMainLayoutState extends State<UserMainLayout> {
   SongModel? _currentSong;
   bool _isPlaying = false;
   Duration _currentPosition = Duration.zero;
+  final ValueNotifier<Duration> _currentPositionNotifier = ValueNotifier<Duration>(Duration.zero);
   Duration _totalDuration = const Duration(minutes: 3, seconds: 30);
   Timer? _playbackTimer;
+
+  void _updateCurrentPosition(Duration position) {
+    _currentPosition = position;
+    _currentPositionNotifier.value = position;
+  }
 
   // Audio & Display Settings
   double _volume = 0.8;
@@ -106,15 +112,14 @@ class _UserMainLayoutState extends State<UserMainLayout> {
           enableCaption: true,
           captionLanguage: 'id',
           interfaceLanguage: 'id',
+          videoStateUpdateInterval: 250,
         ),
       );
 
-      // Sinkronisasi posisi real-time dari video YouTube
+      // Sinkronisasi posisi real-time dari video YouTube secara terisolasi tanpa memicu root setState
       _videoStateSubscription = _youtubeController!.videoStateStream.listen((state) {
         if (!mounted) return;
-        setState(() {
-          _currentPosition = state.position;
-        });
+        _updateCurrentPosition(state.position);
       });
 
       _youtubePlayerSubscription = _youtubeController!.listen((value) {
@@ -174,6 +179,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
     } catch (_) {}
     _youtubeController?.close();
     _stopPlaybackTimer();
+    _currentPositionNotifier.dispose();
     super.dispose();
   }
 
@@ -188,7 +194,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
       }
       setState(() {
         if (_currentPosition.inSeconds < _totalDuration.inSeconds) {
-          _currentPosition += const Duration(seconds: 1);
+          _updateCurrentPosition(_currentPosition + const Duration(seconds: 1));
         } else {
           timer.cancel();
           _onSongFinished();
@@ -208,9 +214,9 @@ class _UserMainLayoutState extends State<UserMainLayout> {
       _playSong(nextSong);
     } else {
       _stopPlaybackTimer();
+      _updateCurrentPosition(Duration.zero);
       setState(() {
         _isPlaying = false;
-        _currentPosition = Duration.zero;
       });
     }
   }
@@ -293,7 +299,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
 
     setState(() {
       _currentSong = song;
-      _currentPosition = Duration.zero;
+      _updateCurrentPosition(Duration.zero);
       _totalDuration = _parseSongDuration(song.songduration);
       _isPlaying = true;
     });
@@ -352,7 +358,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
     }
     setState(() {
       _isPlaying = false;
-      _currentPosition = Duration.zero;
+      _updateCurrentPosition(Duration.zero);
     });
   }
 
@@ -380,7 +386,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
         _castService.seek(Duration.zero);
       }
       setState(() {
-        _currentPosition = Duration.zero;
+        _updateCurrentPosition(Duration.zero);
       });
     } else if (_allSongs.isNotEmpty && _currentSong != null) {
       final currentIndex = _allSongs.indexWhere((s) => s.songid == _currentSong!.songid);
@@ -394,7 +400,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
           _castService.seek(Duration.zero);
         }
         setState(() {
-          _currentPosition = Duration.zero;
+          _updateCurrentPosition(Duration.zero);
         });
       }
     }
@@ -412,7 +418,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
       _castService.seek(position);
     }
     setState(() {
-      _currentPosition = position;
+      _updateCurrentPosition(position);
     });
   }
 
@@ -524,7 +530,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         content: const Text(
-          'Apakah Anda yakin ingin keluar dari Karaoke App?',
+          'Apakah Anda yakin ingin keluar dari Tomsi Karaoke?',
           style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
@@ -745,6 +751,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
                                     isPlaying: _isPlaying,
                                     hasSong: _currentSong != null,
                                     currentPosition: _currentPosition,
+                                    currentPositionListenable: _currentPositionNotifier,
                                     totalDuration: _totalDuration,
                                     onSeek: _seek,
                                     onTogglePlayPause: _togglePlayPause,
@@ -823,6 +830,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
                               isPlaying: _isPlaying,
                               hasSong: _currentSong != null,
                               currentPosition: _currentPosition,
+                              currentPositionListenable: _currentPositionNotifier,
                               totalDuration: _totalDuration,
                               onSeek: _seek,
                               onTogglePlayPause: _togglePlayPause,
@@ -892,6 +900,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
                             isPlaying: _isPlaying,
                             hasSong: _currentSong != null,
                             currentPosition: _currentPosition,
+                            currentPositionListenable: _currentPositionNotifier,
                             totalDuration: _totalDuration,
                             onSeek: _seek,
                             onTogglePlayPause: _togglePlayPause,
@@ -964,7 +973,7 @@ class _UserMainLayoutState extends State<UserMainLayout> {
                 const SizedBox(width: 8),
                 const Flexible(
                   child: Text(
-                    'Karaoke App',
+                    'Tomsi Karaoke',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

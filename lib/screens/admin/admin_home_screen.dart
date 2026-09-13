@@ -70,7 +70,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Ringkasan data sistem Karaoke App',
+                  'Ringkasan data sistem Tomsi Karaoke',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,

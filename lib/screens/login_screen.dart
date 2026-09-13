@@ -168,7 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // App Title
                   const Text(
-                    'Karaoke App',
+                    'Tomsi Karaoke',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,

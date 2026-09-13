@@ -30,8 +30,8 @@ void main() {
   testWidgets('Splash screen renders properly and transitions to LoginScreen', (WidgetTester tester) async {
     await tester.pumpWidget(const KaraokeApp());
 
-    // Memverifikasi Splash Screen tampil dengan teks 'Karaoke App'
-    expect(find.text('Karaoke App'), findsOneWidget);
+    // Memverifikasi Splash Screen tampil dengan teks 'Tomsi Karaoke'
+    expect(find.text('Tomsi Karaoke'), findsOneWidget);
     expect(find.byType(SplashScreen), findsOneWidget);
 
     // Animasi pump

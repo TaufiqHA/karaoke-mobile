@@ -1,19 +1,11 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
-
 /// Konfigurasi terpusat untuk Base URL API backend.
 /// Cukup ubah konfigurasi di file ini untuk mengubah endpoint seluruh aplikasi.
 class ApiConfig {
-  /// Host/IP default untuk backend (misal '127.0.0.1', '10.0.2.2', atau IP LAN seperti '192.168.1.50')
-  static const String defaultHost = '103.30.146.68';
-  //static const String defaultHost = '192.168.1.126';
+  /// Protokol default untuk backend ('http' atau 'https')
+  static const String defaultProtocol = 'http';
 
-  /// Port default untuk Android
-  static const String androidPort = '8001';
-
-  /// Port default untuk Desktop / iOS Simulator
-  static const String defaultPort = '8001';
+  /// Host/Domain default untuk backend
+  static const String defaultHost = 'tomsikaraoke.xyz';
 
   /// Path prefix API
   static const String apiPrefix = '/api';
@@ -22,23 +14,12 @@ class ApiConfig {
   /// Jika bernilai tidak null/tidak kosong, nilai ini akan diprioritaskan.
   static String? customBaseUrl;
 
-  /// Mendapatkan base URL otomatis berdasarkan platform yang berjalan.
+  /// Mendapatkan base URL backend.
   static String get baseUrl {
     final custom = customBaseUrl;
     if (custom != null && custom.isNotEmpty) {
       return custom;
     }
-    if (kIsWeb) {
-      return 'http://localhost:$androidPort$apiPrefix';
-    }
-    try {
-      if (Platform.isAndroid) {
-        return 'http://$defaultHost:$androidPort$apiPrefix';
-      } else {
-        return 'http://$defaultHost:$defaultPort$apiPrefix';
-      }
-    } catch (_) {
-      return 'http://$defaultHost:$defaultPort$apiPrefix';
-    }
+    return '$defaultProtocol://$defaultHost$apiPrefix';
   }
 }

@@ -126,7 +126,7 @@ class _AdminMainLayoutState extends State<AdminMainLayout> {
                   ),
                   const SizedBox(width: 10),
                   const Text(
-                    'Karaoke App',
+                    'Tomsi Karaoke',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

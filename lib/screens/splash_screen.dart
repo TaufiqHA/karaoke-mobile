@@ -189,7 +189,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ],
                       ).createShader(bounds),
                       child: const Text(
-                        'Karaoke App',
+                        'Tomsi Karaoke',
                         style: TextStyle(
                           fontSize: 34,
                           fontWeight: FontWeight.w800,
