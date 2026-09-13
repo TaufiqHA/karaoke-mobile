@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import '../../../core/services/api_category_service.dart';
+import '../../../core/services/api_nada_service.dart';
 import '../../../core/services/api_song_service.dart';
 import '../../../core/services/category_service.dart';
+import '../../../core/services/nada_service.dart';
 import '../../../core/services/song_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../models/category_model.dart';
+import '../../../models/nada_model.dart';
 import '../../../models/song_model.dart';
 
 class AdminSongScreen extends StatefulWidget {
   final SongService? songService;
   final CategoryService? categoryService;
+  final NadaService? nadaService;
 
   const AdminSongScreen({
     super.key,
     this.songService,
     this.categoryService,
+    this.nadaService,
   });
 
   @override
@@ -24,10 +29,12 @@ class AdminSongScreen extends StatefulWidget {
 class _AdminSongScreenState extends State<AdminSongScreen> {
   late final SongService _songService;
   late final CategoryService _categoryService;
+  late final NadaService _nadaService;
 
   List<SongModel> _allSongs = [];
   List<SongModel> _filteredSongs = [];
   List<CategoryModel> _categories = [];
+  List<NadaModel> _nadas = [];
   int? _selectedCategoryFilter; // null = Semua
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
@@ -37,6 +44,7 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
     super.initState();
     _songService = widget.songService ?? ApiSongService();
     _categoryService = widget.categoryService ?? ApiCategoryService();
+    _nadaService = widget.nadaService ?? ApiNadaService();
     _searchController.addListener(_filterSongs);
     _loadData();
   }
@@ -72,6 +80,7 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
 
     List<CategoryModel> categoriesList = _categories;
     List<SongModel> songsList = _allSongs;
+    List<NadaModel> nadasList = _nadas;
 
     try {
       final results = await Future.wait([
@@ -83,10 +92,15 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
           debugPrint('Error loading songs: $e');
           return <SongModel>[];
         }),
+        _nadaService.getNadas().catchError((e) {
+          debugPrint('Error loading nadas: $e');
+          return <NadaModel>[];
+        }),
       ]);
 
       final fetchedCategories = results[0] as List<CategoryModel>;
       final fetchedSongs = results[1] as List<SongModel>;
+      final fetchedNadas = results[2] as List<NadaModel>;
 
       if (fetchedCategories.isNotEmpty || _categories.isEmpty) {
         categoriesList = fetchedCategories;
@@ -94,14 +108,25 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
       if (fetchedSongs.isNotEmpty || _allSongs.isEmpty) {
         songsList = fetchedSongs;
       }
+      if (fetchedNadas.isNotEmpty || _nadas.isEmpty) {
+        nadasList = fetchedNadas;
+      }
     } catch (e) {
       debugPrint('Error in _loadData: $e');
+    }
+
+    if (nadasList.isEmpty && _nadas.isEmpty) {
+      nadasList = [
+        NadaModel(id: 1, nada: 'Pria'),
+        NadaModel(id: 2, nada: 'Wanita'),
+      ];
     }
 
     if (mounted) {
       setState(() {
         _categories = categoriesList;
         _allSongs = songsList;
+        _nadas = nadasList;
         _filterSongs();
         _isLoading = false;
       });
@@ -125,6 +150,165 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
     });
   }
 
+  Future<void> _openAddNadaDialog(
+    BuildContext context,
+    StateSetter setParentDialogState,
+    void Function(String newNada) onNadaSelected,
+  ) async {
+    final nadaController = TextEditingController();
+    final addFormKey = GlobalKey<FormState>();
+    bool isSaving = false;
+    String? errorMessage;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setAddDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.surfaceDark,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: AppColors.cardGlassBorder, width: 1.2),
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryElectric.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.music_note_rounded,
+                      color: AppColors.accentCyan,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Tambah Nada Baru',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: AppColors.textMuted, size: 20),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                  ),
+                ],
+              ),
+              content: Form(
+                key: addFormKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Nama Nada *',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextFormField(
+                      controller: nadaController,
+                      autofocus: true,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      decoration: _inputDecoration(
+                        hint: 'Misal: Pria, Wanita, C, D Minor, dll',
+                        icon: Icons.tune_rounded,
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Nama nada wajib diisi';
+                        }
+                        return null;
+                      },
+                    ),
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        errorMessage!,
+                        style: const TextStyle(color: AppColors.error, fontSize: 12),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Batal', style: TextStyle(color: AppColors.textMuted)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryElectric,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          if (addFormKey.currentState?.validate() != true) return;
+                          setAddDialogState(() {
+                            isSaving = true;
+                            errorMessage = null;
+                          });
+
+                          try {
+                            final created = await _nadaService.createNada(nadaController.text.trim());
+                            if (!mounted) return;
+
+                            setState(() {
+                              if (!_nadas.any((n) => n.id == created.id || n.nada.toLowerCase() == created.nada.toLowerCase())) {
+                                _nadas.add(created);
+                              }
+                            });
+
+                            onNadaSelected(created.nada);
+                            setParentDialogState(() {});
+
+                            Navigator.of(dialogContext).pop();
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Nada "${created.nada}" berhasil ditambahkan'),
+                                backgroundColor: AppColors.accentCyan,
+                              ),
+                            );
+                          } catch (e) {
+                            setAddDialogState(() {
+                              isSaving = false;
+                              errorMessage = e.toString().replaceAll('Exception: ', '');
+                            });
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Simpan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _showSongFormDialog({SongModel? song}) async {
     // Pastikan kategori telah termuat sebelum membuka dialog form
     if (_categories.isEmpty) {
@@ -137,6 +321,20 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
         }
       } catch (e) {
         debugPrint('Could not load categories prior to dialog: $e');
+      }
+    }
+
+    // Pastikan nada telah termuat sebelum membuka dialog form
+    if (_nadas.isEmpty) {
+      try {
+        final nads = await _nadaService.getNadas();
+        if (nads.isNotEmpty && mounted) {
+          setState(() {
+            _nadas = nads;
+          });
+        }
+      } catch (e) {
+        debugPrint('Could not load nadas prior to dialog: $e');
       }
     }
 
@@ -154,17 +352,10 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
       selectedCategory = _categories.isNotEmpty ? _parseCategoryId(_categories.first.id) : null;
     }
     
-    // Sanitize selectedNada to prevent crashes with legacy values like "C", "Am", etc.
-    String? selectedNada;
-    if (song?.songnada != null) {
-      final lower = song!.songnada!.trim().toLowerCase();
-      if (lower == 'pria') {
-        selectedNada = 'Pria';
-      } else if (lower == 'wanita') {
-        selectedNada = 'Wanita';
-      } else {
-        selectedNada = null;
-      }
+    // Initialize selectedNada from song, default to '-'
+    String? selectedNada = song?.songnada?.trim();
+    if (selectedNada == null || selectedNada.isEmpty) {
+      selectedNada = '-';
     }
 
     final formKey = GlobalKey<FormState>();
@@ -433,123 +624,154 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          // Nada Lagu (Full-Width Selector: Pria / Wanita)
-                          const Text(
-                            'Nada Lagu',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
+                          // Nada Lagu Header dengan Tombol Tambah Nada
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Nada Lagu',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () => _openAddNadaDialog(
+                                  context,
+                                  setDialogState,
+                                  (newNada) {
+                                    selectedNada = newNada;
+                                  },
+                                ),
+                                borderRadius: BorderRadius.circular(6),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.add_rounded, size: 16, color: AppColors.accentCyan),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Tambah Nada',
+                                        style: TextStyle(
+                                          color: AppColors.accentCyan,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 6),
-                          Container(
-                            height: 48,
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: AppColors.inputBackground,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppColors.inputBorder),
-                            ),
-                            child: Row(
-                              children: [
-                                // Tombol Pria
-                                Expanded(
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(8),
-                                    onTap: () {
-                                      setDialogState(() {
-                                        selectedNada = selectedNada == 'Pria' ? null : 'Pria';
-                                      });
-                                    },
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 180),
-                                      decoration: BoxDecoration(
-                                        color: selectedNada == 'Pria'
-                                            ? AppColors.primaryElectric
-                                            : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Center(
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.male_rounded,
-                                              size: 18,
-                                              color: selectedNada == 'Pria'
-                                                  ? Colors.white
-                                                  : AppColors.accentSky,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Nada Pria',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: selectedNada == 'Pria'
-                                                    ? FontWeight.bold
-                                                    : FontWeight.w500,
-                                                color: selectedNada == 'Pria'
-                                                    ? Colors.white
-                                                    : AppColors.textSecondary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                          const SizedBox(height: 8),
+
+                          // Dropdown Pilihan Nada Dinamis dari API
+                          Builder(
+                            builder: (context) {
+                              final rawNadas = <NadaModel>[
+                                const NadaModel(id: 0, nada: '-'),
+                                ..._nadas,
+                              ];
+                              if (_nadas.isEmpty) {
+                                rawNadas.addAll([
+                                  const NadaModel(id: 1, nada: 'Pria'),
+                                  const NadaModel(id: 2, nada: 'Wanita'),
+                                ]);
+                              }
+                              // Sertakan selectedNada jika ada dan belum terdaftar di list
+                              if (selectedNada != null &&
+                                  selectedNada!.isNotEmpty &&
+                                  !rawNadas.any((n) => n.nada.toLowerCase() == selectedNada!.toLowerCase())) {
+                                rawNadas.add(NadaModel(id: 0, nada: selectedNada!));
+                              }
+
+                              // Deduplikasi berdasarkan string lowercase nada
+                              final uniqueMap = <String, NadaModel>{};
+                              for (final item in rawNadas) {
+                                uniqueMap.putIfAbsent(item.nada.toLowerCase(), () => item);
+                              }
+                              final availableNadas = uniqueMap.values.toList();
+
+                              // Tentukan value yang cocok secara case-insensitive
+                              final matchingItem = selectedNada != null
+                                  ? availableNadas.cast<NadaModel?>().firstWhere(
+                                      (n) => n!.nada.toLowerCase() == selectedNada!.toLowerCase(),
+                                      orElse: () => null,
+                                    )
+                                  : null;
+
+                              return DropdownButtonFormField<String>(
+                                key: const Key('nada_dropdown'),
+                                value: matchingItem?.nada ?? '-',
+                                isExpanded: true,
+                                dropdownColor: AppColors.surfaceDark,
+                                icon: const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: AppColors.accentCyan,
+                                  size: 26,
                                 ),
-                                const SizedBox(width: 6),
-                                // Tombol Wanita
-                                Expanded(
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(8),
-                                    onTap: () {
-                                      setDialogState(() {
-                                        selectedNada = selectedNada == 'Wanita' ? null : 'Wanita';
-                                      });
-                                    },
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 180),
-                                      decoration: BoxDecoration(
-                                        color: selectedNada == 'Wanita'
-                                            ? const Color(0xFFD81B60)
-                                            : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Center(
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(
-                                              Icons.female_rounded,
-                                              size: 18,
-                                              color: selectedNada == 'Wanita'
-                                                  ? Colors.white
-                                                  : const Color(0xFFFF80AB),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Nada Wanita',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: selectedNada == 'Wanita'
-                                                    ? FontWeight.bold
-                                                    : FontWeight.w500,
-                                                color: selectedNada == 'Wanita'
-                                                    ? Colors.white
-                                                    : AppColors.textSecondary,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                                style: const TextStyle(color: Colors.white, fontSize: 14),
+                                hint: const Text(
+                                  'Pilih Nada Lagu',
+                                  style: TextStyle(color: AppColors.textMuted, fontSize: 13),
                                 ),
-                              ],
-                            ),
+                                decoration: _inputDecoration(
+                                  hint: 'Pilih Nada Lagu',
+                                  icon: Icons.tune_rounded,
+                                ),
+                                items: availableNadas.map((item) {
+                                  final isDash = item.nada == '-';
+                                  final isPria = item.nada.toLowerCase() == 'pria';
+                                  final isWanita = item.nada.toLowerCase() == 'wanita';
+
+                                  final icon = isDash
+                                      ? Icons.horizontal_rule_rounded
+                                      : isPria
+                                          ? Icons.male_rounded
+                                          : isWanita
+                                              ? Icons.female_rounded
+                                              : Icons.music_note_rounded;
+
+                                  final iconColor = isDash
+                                      ? AppColors.textMuted
+                                      : isPria
+                                          ? AppColors.primaryElectric
+                                          : isWanita
+                                              ? const Color(0xFFD81B60)
+                                              : AppColors.accentCyan;
+
+                                  final String label = isDash
+                                      ? '-'
+                                      : (isPria || isWanita)
+                                          ? 'Nada ${item.nada}'
+                                          : (item.nada.toLowerCase().startsWith('nada')
+                                              ? item.nada
+                                              : 'Nada ${item.nada}');
+
+                                  return DropdownMenuItem<String>(
+                                    value: item.nada,
+                                    child: Row(
+                                      children: [
+                                        Icon(icon, size: 18, color: iconColor),
+                                        const SizedBox(width: 10),
+                                        Text(
+                                          label,
+                                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  setDialogState(() {
+                                    selectedNada = val;
+                                  });
+                                },
+                              );
+                            },
                           ),
                           const SizedBox(height: 14),
 
@@ -624,7 +846,7 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                                   songsinger: singerController.text.trim(),
                                   songurl: urlController.text.trim(),
                                   songcategory: selectedCategory!,
-                                  songnada: selectedNada?.trim().isNotEmpty == true ? selectedNada : null,
+                                  songnada: selectedNada?.trim().isNotEmpty == true ? selectedNada!.trim() : '-',
                                   songduration: durationController.text.trim().isNotEmpty ? durationController.text.trim() : null,
                                 );
                                 await _songService.updateSong(updated);
@@ -634,7 +856,7 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                                   songsinger: singerController.text.trim(),
                                   songurl: urlController.text.trim(),
                                   songcategory: selectedCategory!,
-                                  songnada: selectedNada?.trim().isNotEmpty == true ? selectedNada : null,
+                                  songnada: selectedNada?.trim().isNotEmpty == true ? selectedNada!.trim() : '-',
                                   songduration: durationController.text.trim().isNotEmpty ? durationController.text.trim() : null,
                                 );
                               }
@@ -1164,7 +1386,7 @@ class _AdminSongScreenState extends State<AdminSongScreen> {
                                           ),
 
                                           // Nada Badge (Pria / Wanita / Custom)
-                                          if (song.songnada != null && song.songnada!.isNotEmpty)
+                                          if (song.songnada != null && song.songnada!.isNotEmpty && song.songnada != '-')
                                             Builder(
                                               builder: (context) {
                                                 final isWanita = song.songnada!.toLowerCase() == 'wanita';

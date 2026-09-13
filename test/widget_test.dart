@@ -240,8 +240,11 @@ void main() {
     await tester.enterText(formFields.at(2), 'https://example.com/audio/hampa.mp3');
     await tester.enterText(formFields.at(3), '04:12');
 
-    // Pilih Nada 'Pria' dari segmented button
-    await tester.tap(find.text('Nada Pria'));
+    // Pilih Nada 'Pria' dari dropdown
+    final nadaDropdown = find.byKey(const Key('nada_dropdown'));
+    await tester.tap(nadaDropdown);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nada Pria').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Simpan'));
@@ -261,8 +264,10 @@ void main() {
     final editFields = find.byType(TextFormField);
     await tester.enterText(editFields.at(0), 'Hampa (Akustik)');
 
-    // Ubah Nada menjadi 'Wanita'
-    await tester.tap(find.text('Nada Wanita'));
+    // Ubah Nada menjadi 'Wanita' dari dropdown
+    await tester.tap(find.byKey(const Key('nada_dropdown')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Nada Wanita').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Simpan'));
