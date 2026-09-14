@@ -13,7 +13,6 @@ import '../../models/category_model.dart';
 import '../../models/song_model.dart';
 import '../../models/user_model.dart';
 import '../login_screen.dart';
-import '../profile/profile_screen.dart';
 import '../../services/cast/smart_tv_cast_service.dart';
 import 'widgets/cast_device_modal.dart';
 import 'widgets/player_controls.dart';
@@ -497,25 +496,6 @@ class _UserMainLayoutState extends State<UserMainLayout> {
     });
   }
 
-  Future<void> _openProfile() async {
-    final updatedUser = await Navigator.of(context).push<UserModel?>(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            ProfileScreen(initialUser: _currentUser),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
-
-    if (updatedUser != null && mounted) {
-      setState(() {
-        _currentUser = updatedUser;
-      });
-    }
-  }
-
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -986,31 +966,6 @@ class _UserMainLayoutState extends State<UserMainLayout> {
               ],
             ),
           ),
-
-          // Profile Button
-          IconButton(
-            onPressed: _openProfile,
-            tooltip: 'Manajemen Profil',
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-            icon: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.primaryElectric.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppColors.accentCyan.withValues(alpha: 0.3),
-                ),
-              ),
-              child: const Icon(
-                Icons.person_rounded,
-                color: AppColors.accentCyan,
-                size: 16,
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 4),
 
           // Logout Button
           IconButton(

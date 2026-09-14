@@ -81,7 +81,7 @@ void main() {
     expect(find.text('Tomsi Karaoke'), findsOneWidget);
     expect(find.text('Ruang Bernyanyi'), findsNothing);
     expect(find.byTooltip('Cari Lagu'), findsNothing);
-    expect(find.byTooltip('Manajemen Profil'), findsOneWidget);
+    expect(find.byTooltip('Manajemen Profil'), findsNothing);
     expect(find.byTooltip('Keluar'), findsOneWidget);
 
     // 2. Verifikasi Sub-widget Utama
@@ -344,7 +344,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('UserMainLayout navigates to ProfileScreen via profile button', (WidgetTester tester) async {
+  testWidgets('UserMainLayout does not display profile button and disables ProfileScreen access', (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: UserMainLayout(
@@ -357,12 +357,8 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    final profileBtn = find.byTooltip('Manajemen Profil');
-    await tester.tap(profileBtn);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(ProfileScreen), findsOneWidget);
-    expect(find.text('Manajemen Profil'), findsOneWidget);
+    expect(find.byTooltip('Manajemen Profil'), findsNothing);
+    expect(find.byType(ProfileScreen), findsNothing);
   });
 
   testWidgets('LoginScreen routes user role to UserMainLayout', (WidgetTester tester) async {
